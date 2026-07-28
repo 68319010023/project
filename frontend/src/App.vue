@@ -1,9 +1,7 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import { supabase } from './supabase'
-console.log(supabase)
+import Login from './views/Login.vue'
 </script>
 
 <template>
-  <HelloWorld />
+  <router-view />
 </template>
