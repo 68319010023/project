@@ -88,101 +88,100 @@ onMounted(fetchDashboardData)
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#FBF9F4]">
-    <main class="max-w-5xl mx-auto px-5 py-8">
+  <div class="notebook-page min-h-dvh">
+    <main class="mx-auto max-w-5xl px-5 py-8">
       <div v-if="errorMsg"
-        class="text-center text-[#993C1D] bg-[#FAECE7] border border-[#F0997B] rounded-lg py-4 px-4 text-sm">
+        class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-4 py-4 text-center text-sm font-medium text-[#B8402A]">
         {{ errorMsg }}
       </div>
 
-      <div v-else-if="!loading">
+      <div v-else-if="loading" class="flex justify-center py-16 text-sm text-[#8A8072]">
+        กำลังโหลดข้อมูล…
+      </div>
+
+      <div v-else>
         <!-- ID card -->
-        <div class="bg-white border border-[#14213D]/10 rounded-2xl mb-8 overflow-hidden">
+        <div class="note-card mb-8 overflow-hidden">
           <div class="flex items-center gap-4 px-6 py-5">
-            <div
-              class="w-14 h-14 rounded-full bg-[#14213D] flex items-center justify-center text-[#FBF9F4] text-xl font-semibold shrink-0"
-              style="font-family: 'Chakra Petch', sans-serif;">
+            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#FF6B4A] text-xl font-semibold text-white">
               {{ initial }}
             </div>
             <div>
-              <p class="text-lg font-semibold text-[#14213D]" style="font-family: 'Chakra Petch', sans-serif;">
+              <p class="title-font text-lg font-semibold text-[#2A2521]">
                 {{ profile?.name || 'ไม่ระบุชื่อ' }}
               </p>
-              <span class="inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded bg-[#0F766E]/10 text-[#0F766E]">
+              <span class="mt-1 inline-block rounded-full bg-[#7C9473]/10 px-2.5 py-0.5 text-xs font-medium text-[#5C7355]">
                 นักเรียน
               </span>
             </div>
           </div>
 
-          <div class="border-t border-dashed border-[#14213D]/15"></div>
+          <div class="border-t-2 border-dashed border-[#E4DCC8]"></div>
 
-          <div class="grid grid-cols-3 divide-x divide-[#14213D]/10">
+          <div class="grid grid-cols-3 divide-x-2 divide-dashed divide-[#E4DCC8]">
             <div class="px-4 py-4 text-center">
-              <p class="text-2xl font-semibold text-[#0F766E]" style="font-family: 'Chakra Petch', monospace;">
+              <p class="title-font text-2xl font-semibold text-[#7C9473]">
                 {{ stats.classroomCount }}
               </p>
-              <p class="text-xs text-[#14213D]/50 mt-1">ห้องเรียนของฉัน</p>
+              <p class="mt-1 text-xs text-[#8A8072]">ห้องเรียนของฉัน</p>
             </div>
             <div class="px-4 py-4 text-center">
-              <p class="text-2xl font-semibold text-[#FF6B4A]" style="font-family: 'Chakra Petch', monospace;">
+              <p class="title-font text-2xl font-semibold text-[#FF6B4A]">
                 {{ stats.pendingCount }}
               </p>
-              <p class="text-xs text-[#14213D]/50 mt-1">งานใกล้ครบกำหนด</p>
+              <p class="mt-1 text-xs text-[#8A8072]">งานใกล้ครบกำหนด</p>
             </div>
             <div class="px-4 py-4 text-center">
-              <p class="text-2xl font-semibold text-[#E8A33D]" style="font-family: 'Chakra Petch', monospace;">
+              <p class="title-font text-2xl font-semibold text-[#D19B3D]">
                 {{ stats.avgScore }}
               </p>
-              <p class="text-xs text-[#14213D]/50 mt-1">คะแนนเฉลี่ย</p>
+              <p class="mt-1 text-xs text-[#8A8072]">คะแนนเฉลี่ย</p>
             </div>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
           <!-- classrooms -->
-          <section class="lg:col-span-2 bg-white border border-[#14213D]/10 rounded-2xl p-5">
-            <h2 class="text-sm font-semibold text-[#14213D] mb-4 uppercase tracking-wide"
-              style="font-family: 'Chakra Petch', sans-serif;">
+          <section class="note-card p-5 lg:col-span-2">
+            <h2 class="title-font mb-4 text-sm font-semibold uppercase tracking-wide text-[#2A2521]">
               ห้องเรียนของฉัน
             </h2>
 
-            <div v-if="classrooms.length === 0" class="text-center py-10">
-              <p class="text-sm text-[#14213D]/60">ยังไม่มีห้องเรียนที่ลงทะเบียน</p>
-              <p class="text-xs text-[#14213D]/35 mt-1">ใส่รหัสห้องเรียนจากครูผู้สอนเพื่อเข้าร่วม</p>
+            <div v-if="classrooms.length === 0" class="py-10 text-center">
+              <p class="text-sm text-[#8A8072]">ยังไม่มีห้องเรียนที่ลงทะเบียน</p>
+              <p class="mt-1 text-xs text-[#B0A692]">ใส่รหัสห้องเรียนจากครูผู้สอนเพื่อเข้าร่วม</p>
             </div>
 
             <ul v-else class="space-y-2">
               <li v-for="room in classrooms" :key="room.id"
-                class="flex items-center justify-between rounded-xl border border-dashed border-[#0F766E]/30 bg-[#0F766E]/5 px-4 py-3 hover:bg-[#0F766E]/10 transition-colors cursor-pointer">
+                class="flex cursor-pointer items-center justify-between rounded-xl border-2 border-dashed border-[#E4DCC8] bg-[#FFFDF8] px-4 py-3 transition-colors hover:border-[#FF6B4A]/40 hover:bg-[#FF6B4A]/5">
                 <div>
-                  <p class="text-sm font-medium text-[#14213D]">{{ room.name }}</p>
-                  <p class="text-xs text-[#14213D]/45 mt-0.5" style="font-family: 'Chakra Petch', monospace;">
+                  <p class="text-sm font-medium text-[#2A2521]">{{ room.name }}</p>
+                  <p class="mt-0.5 text-xs tracking-wide text-[#B0A692]">
                     {{ room.class_code }}
                   </p>
                 </div>
-                <span class="text-[#0F766E]">→</span>
+                <span class="text-[#FF6B4A]">→</span>
               </li>
             </ul>
           </section>
 
           <!-- right column -->
           <div class="space-y-5">
-            <section class="bg-white border border-[#14213D]/10 rounded-2xl p-5">
-              <h2 class="text-sm font-semibold text-[#14213D] mb-4 uppercase tracking-wide"
-                style="font-family: 'Chakra Petch', sans-serif;">
+            <section class="note-card p-5">
+              <h2 class="title-font mb-4 text-sm font-semibold uppercase tracking-wide text-[#2A2521]">
                 งานใกล้ครบกำหนด
               </h2>
 
-              <div v-if="upcomingAssignments.length === 0" class="text-center py-6">
-                <p class="text-sm text-[#14213D]/60">ไม่มีงานที่ต้องส่งตอนนี้</p>
+              <div v-if="upcomingAssignments.length === 0" class="py-6 text-center">
+                <p class="text-sm text-[#8A8072]">ไม่มีงานที่ต้องส่งตอนนี้</p>
               </div>
 
               <ul v-else class="space-y-3">
                 <li v-for="item in upcomingAssignments" :key="item.id"
-                  class="flex items-center justify-between text-sm gap-2">
-                  <span class="text-[#14213D] truncate">{{ item.title }}</span>
-                  <span class="text-xs font-medium whitespace-nowrap px-2 py-0.5 rounded bg-[#FF6B4A]/10 text-[#993C1D]"
-                    style="font-family: 'Chakra Petch', monospace;">
+                  class="flex items-center justify-between gap-2 text-sm">
+                  <span class="truncate text-[#2A2521]">{{ item.title }}</span>
+                  <span class="whitespace-nowrap rounded-full bg-[#FF6B4A]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8402A]">
                     {{ formatDueDate(item.due_date) }}
                   </span>
                 </li>
@@ -194,3 +193,37 @@ onMounted(fetchDashboardData)
     </main>
   </div>
 </template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap');
+
+.notebook-page {
+  background-color: #FBF6EC;
+  background-image: radial-gradient(#E4DCC8 1px, transparent 1px);
+  background-size: 22px 22px;
+  font-family: 'Sarabun', sans-serif;
+}
+
+.title-font {
+  font-family: 'Kanit', sans-serif;
+}
+
+.note-card {
+  position: relative;
+  border-radius: 18px;
+  background: #FFFDF8;
+  border: 2px solid #E4DCC8;
+  box-shadow: 0 2px 8px rgba(42, 37, 33, 0.06);
+}
+
+.note-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: #F1EADC;
+  border-radius: 0 18px 0 18px;
+}
+</style>

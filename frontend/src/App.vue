@@ -7,6 +7,9 @@ import LoadingSpinner from './components/LoadingSpinner.vue'
 const router = useRouter()
 const route = useRoute()
 
+const publicPaths = ['/login', '/register']
+const isPublicPage = computed(() => publicPaths.includes(route.path))
+const showHeader = computed(() => isLoggedIn.value && !isPublicPage.value)
 const isLoggedIn = ref(false)
 const profile = ref(null)
 const mobileMenuOpen = ref(false)
@@ -20,7 +23,7 @@ const homePath = computed(() =>
 )
 const navLinks = computed(() => [
   { label: 'หน้าหลัก', to: homePath.value },
-  { label: 'AI ติวเตอร์', to: '/ai-tutor' },
+  
 ])
 const onAiTutorPage = computed(() => route.path === '/ai-tutor')
 
@@ -78,16 +81,16 @@ router.afterEach(() => {
 
 <template>
   <!-- splash เต็มจอ ตอนเช็ค session ครั้งแรก -->
-  <div v-if="!appReady" class="min-h-screen flex items-center justify-center bg-[#FBF9F4]">
+  <div v-if="!appReady" class="notebook-page flex min-h-dvh items-center justify-center">
     <div class="flex flex-col items-center gap-4">
-      <div class="w-12 h-12 rounded-xl bg-[#14213D] flex items-center justify-center">
-        <span class="text-lg">🎓</span>
+      <div class="pencil-badge flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6B4A] text-white">
+        <span class="text-lg">✎</span>
       </div>
       <LoadingSpinner :size="28" label="กำลังโหลด…" />
     </div>
   </div>
 
-  <div v-else class="min-h-screen bg-[#FBF9F4]">
+  <div v-else class="notebook-page min-h-dvh">
     <!-- แถบ progress บาง ๆ ตอนเปลี่ยนหน้า -->
     <div
       v-if="routeLoading"
@@ -95,52 +98,52 @@ router.afterEach(() => {
       style="animation: loadbar 0.8s ease-in-out infinite;"
     ></div>
 
-    <header v-if="isLoggedIn" class="sticky top-0 z-40 bg-white border-b border-[#14213D]/10">
-      <div class="flex items-center justify-between h-16 px-5 md:px-8">
+    <header v-if="showHeader" class="sticky top-0 z-40 border-b-2 border-[#E4DCC8] bg-[#FBF6EC]/95 backdrop-blur">
+      <div class="flex h-16 items-center justify-between px-5 md:px-8">
         <div class="flex items-center gap-6">
-          <router-link :to="homePath" class="w-9 h-9 rounded-xl bg-[#14213D] flex items-center justify-center shrink-0">
-            <span class="text-sm">🎓</span>
+          <router-link :to="homePath" class="pencil-badge flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FF6B4A]">
+            <span class="text-sm text-white">✎</span>
           </router-link>
 
-          <nav class="hidden md:flex items-center gap-1">
+          <nav class="hidden items-center gap-1 md:flex">
             <router-link
               v-for="link in navLinks" :key="link.to" :to="link.to"
-              class="px-3 py-2 rounded-full text-sm font-medium transition-colors"
-              :class="isActive(link.to) ? 'text-[#14213D] bg-[#14213D]/5' : 'text-[#14213D]/45 hover:text-[#14213D]/75'"
+              class="title-font rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
+              :class="isActive(link.to) ? 'bg-[#FF6B4A]/10 text-[#FF6B4A]' : 'text-[#8A8072] hover:text-[#2A2521]'"
             >
               {{ link.label }}
             </router-link>
           </nav>
         </div>
 
-        <div class="hidden md:flex items-center gap-3">
-          <div class="w-9 h-9 rounded-full bg-[#0F766E]/10 flex items-center justify-center text-[#0F766E] text-xs font-semibold" style="font-family: 'Chakra Petch', sans-serif;">
+        <div class="hidden items-center gap-3 md:flex">
+          <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
             {{ initial }}
           </div>
-          <button @click="handleLogout" class="flex items-center gap-1.5 bg-[#E5484D] text-white text-sm font-medium rounded-full px-4 py-2 hover:bg-[#E5484D]/90 transition-colors">
+          <button @click="handleLogout" class="stamp-btn-sm rounded-full bg-[#2A2521] px-4 py-2 text-sm font-medium text-[#FBF6EC] transition-colors hover:bg-[#2A2521]/90">
             ออกจากระบบ
           </button>
         </div>
 
-        <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden text-[#14213D] text-xl leading-none px-2" aria-label="เปิดเมนู">
+        <button @click="mobileMenuOpen = !mobileMenuOpen" class="px-2 text-xl leading-none text-[#2A2521] md:hidden" aria-label="เปิดเมนู">
           {{ mobileMenuOpen ? '✕' : '☰' }}
         </button>
       </div>
 
-      <div v-if="mobileMenuOpen" class="md:hidden border-t border-[#14213D]/8 px-5 py-3 space-y-1">
+      <div v-if="mobileMenuOpen" class="space-y-1 border-t-2 border-dashed border-[#E4DCC8] px-5 py-3 md:hidden">
         <router-link
           v-for="link in navLinks" :key="link.to" :to="link.to" @click="mobileMenuOpen = false"
-          class="block px-3 py-2.5 rounded-full text-sm font-medium"
-          :class="isActive(link.to) ? 'text-[#14213D] bg-[#14213D]/5' : 'text-[#14213D]/45'"
+          class="block rounded-full px-3 py-2.5 text-sm font-medium"
+          :class="isActive(link.to) ? 'bg-[#FF6B4A]/10 text-[#FF6B4A]' : 'text-[#8A8072]'"
         >
           {{ link.label }}
         </router-link>
-        <div class="flex items-center gap-3 px-3 pt-3 mt-1 border-t border-[#14213D]/8">
-          <div class="w-8 h-8 rounded-full bg-[#0F766E]/10 flex items-center justify-center text-[#0F766E] text-xs font-semibold" style="font-family: 'Chakra Petch', sans-serif;">
+        <div class="mt-1 flex items-center gap-3 border-t border-dashed border-[#E4DCC8] px-3 pt-3">
+          <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
             {{ initial }}
           </div>
-          <span class="text-sm text-[#14213D]/70 flex-1 truncate">{{ profile?.name }}</span>
-          <button @click="handleLogout" class="bg-[#E5484D] text-white text-sm font-medium rounded-full px-4 py-1.5">
+          <span class="flex-1 truncate text-sm text-[#6B6255]">{{ profile?.name }}</span>
+          <button @click="handleLogout" class="rounded-full bg-[#2A2521] px-4 py-1.5 text-sm font-medium text-[#FBF6EC]">
             ออกจากระบบ
           </button>
         </div>
@@ -149,26 +152,113 @@ router.afterEach(() => {
 
     <router-view />
 
-    <div v-if="isLoggedIn && !onAiTutorPage" class="fixed bottom-5 right-5 z-50">
-      <div v-if="aiPopupOpen" class="mb-3 w-72 bg-[#14213D] rounded-2xl p-5 shadow-lg shadow-[#14213D]/20">
-        <div class="flex items-start justify-between mb-2">
-          <p class="font-semibold text-[#FBF9F4]" style="font-family: 'Chakra Petch', sans-serif;">AI ติวเตอร์ 24 ชม.</p>
-          <button @click="aiPopupOpen = false" class="text-[#FBF9F4]/50 hover:text-[#FBF9F4] text-sm leading-none" aria-label="ปิด">✕</button>
+    <div v-if="showHeader && !onAiTutorPage" class="fixed bottom-5 right-5 z-50">
+      <div v-if="aiPopupOpen" class="note-card mb-3 w-72 p-5">
+        <div class="mb-2 flex items-start justify-between">
+          <p class="title-font font-semibold text-[#2A2521]">AI ติวเตอร์ 24 ชม.</p>
+          <button @click="aiPopupOpen = false" class="text-sm leading-none text-[#B0A692] hover:text-[#2A2521]" aria-label="ปิด">✕</button>
         </div>
-        <p class="text-sm text-[#FBF9F4]/60 mb-4">ถามคำถาม ทบทวนบทเรียน หรือขอคำแนะนำได้ทุกเวลา</p>
-        <button @click="goToAiTutor" class="w-full bg-[#FF6B4A] text-[#4A1B0C] font-medium text-sm rounded-lg px-4 py-2 hover:bg-[#FF6B4A]/90 transition-colors">
+        <p class="mb-4 text-sm text-[#8A8072]">ถามคำถาม ทบทวนบทเรียน หรือขอคำแนะนำได้ทุกเวลา</p>
+        <button @click="goToAiTutor" class="stamp-btn-sm w-full rounded-full bg-[#FF6B4A] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#FF6B4A]/90">
           เริ่มคุยกับ AI
         </button>
       </div>
-      <button @click="aiPopupOpen = !aiPopupOpen" class="w-14 h-14 rounded-full bg-[#FF6B4A] flex items-center justify-center shadow-lg shadow-[#FF6B4A]/30 hover:bg-[#FF6B4A]/90 transition-colors ml-auto" aria-label="เปิดแชท AI ติวเตอร์">
-        <span class="text-xl text-[#4A1B0C]">{{ aiPopupOpen ? '✕' : '💬' }}</span>
+      <button
+        @click="aiPopupOpen = !aiPopupOpen"
+        class="fab-btn ml-auto flex h-[68px] w-[68px] items-center justify-center rounded-full bg-[#FF6B4A] transition-transform hover:scale-105 active:scale-90"
+        :class="{ 'fab-pulse': !aiPopupOpen }"
+        aria-label="เปิดแชท AI ติวเตอร์"
+      >
+        <span class="text-2xl text-white">{{ aiPopupOpen ? '✕' : '✎' }}</span>
       </button>
     </div>
   </div>
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=IBM+Plex+Sans+Thai:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap');
+
+.notebook-page {
+  background-color: #FBF6EC;
+  background-image: radial-gradient(#E4DCC8 1px, transparent 1px);
+  background-size: 22px 22px;
+  font-family: 'Sarabun', sans-serif;
+  color: #2A2521;
+}
+
+.title-font {
+  font-family: 'Kanit', sans-serif;
+}
+
+.pencil-badge {
+  box-shadow: 0 2px 0 #C94A2E;
+}
+
+.note-card {
+  position: relative;
+  border-radius: 18px;
+  background: #FFFDF8;
+  border: 2px solid #E4DCC8;
+  box-shadow: 0 6px 20px rgba(42, 37, 33, 0.1);
+}
+.note-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: #F1EADC;
+  border-radius: 0 18px 0 18px;
+}
+
+.stamp-btn {
+  box-shadow: 0 3px 0 #C94A2E;
+}
+.stamp-btn:active {
+  box-shadow: 0 1px 0 #C94A2E;
+}
+.stamp-btn-sm {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+}
+.stamp-btn-sm:active {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+/* floating AI button: white circle with a soft breathing ring so it reads as tappable */
+.fab-btn {
+  position: relative;
+  box-shadow: 0 6px 16px rgba(42, 37, 33, 0.25), 0 2px 0 #C94A2E;
+}
+.fab-pulse {
+  animation: fab-bob 2.6s ease-in-out infinite;
+}
+.fab-pulse::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #FF6B4A;
+  opacity: 0.45;
+  animation: fab-ring 2.6s ease-out infinite;
+}
+
+@keyframes fab-ring {
+  0% { transform: scale(1); opacity: 0.35; }
+  70% { transform: scale(1.55); opacity: 0; }
+  100% { transform: scale(1.55); opacity: 0; }
+}
+@keyframes fab-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fab-pulse,
+  .fab-pulse::before {
+    animation: none;
+  }
+}
 
 @keyframes loadbar {
   0% { transform: scaleX(0); transform-origin: left; }
