@@ -2,15 +2,13 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../supabase'
-
-// *** หมายเหตุ: โค้ดนี้อ้างอิงโครงสร้างตารางที่สมมติไว้ (profiles, classrooms,
-// classroom_students, assignments, submissions) ถ้าชื่อ table/column ของจริง
-// ไม่ตรง ให้แก้ไขใน query ด้านล่างให้ตรงกับสคีมาจริงของคุณ ***
+import CreateClassroomModal from './CreateClassroomModal.vue'
 
 const router = useRouter()
 
 const loading = ref(true)
 const errorMsg = ref('')
+const showCreateModal = ref(false)
 
 const profile = ref(null)
 const classrooms = ref([])
@@ -22,6 +20,14 @@ const stats = computed(() => ({
   studentCount: totalStudents.value,
   pendingGrading: pendingGradingCount.value,
 }))
+
+// สีแถบบนของการ์ดห้องเรียน สลับวนตามธีมสมุด
+const cardAccents = ['#FF6B4A', '#7C9473', '#C99B5C']
+function accentFor(index) {
+  return cardAccents[index % cardAccents.length]
+}
+
+const initial = computed(() => (profile.value?.name ? profile.value.name.trim().charAt(0) : '?'))
 
 async function fetchDashboardData() {
   loading.value = true
@@ -36,22 +42,23 @@ async function fetchDashboardData() {
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('full_name, role')
+      .select('name, role')
       .eq('id', user.id)
       .single()
     if (profileError) throw profileError
     profile.value = profileData
 
     // ห้องเรียนที่สอนอยู่ พร้อมจำนวนนักเรียนในแต่ละห้อง
+    // หมายเหตุ: เพิ่ม grade_level เข้ามาในคำสั่ง select — ถ้าตาราง classrooms ยังไม่มีคอลัมน์นี้ ต้องเพิ่มก่อน ไม่งั้นจะได้ undefined
     const { data: classroomsData, error: classroomError } = await supabase
       .from('classrooms')
-      .select('id, name, class_code, classroom_students(count)')
+      .select('id, name, class_code, grade_level, classroom_enrollments(count)')
       .eq('teacher_id', user.id)
     if (classroomError) throw classroomError
 
     classrooms.value = (classroomsData || []).map((room) => ({
       ...room,
-      studentCount: room.classroom_students?.[0]?.count ?? 0,
+      studentCount: room.classroom_enrollments?.[0]?.count ?? 0,
     }))
 
     totalStudents.value = classrooms.value.reduce((sum, r) => sum + r.studentCount, 0)
@@ -68,7 +75,7 @@ async function fetchDashboardData() {
 
       if (assignmentIds.length > 0) {
         const { count } = await supabase
-          .from('submissions')
+          .from('assignment_submissions')
           .select('id', { count: 'exact', head: true })
           .in('assignment_id', assignmentIds)
           .is('score', null)
@@ -84,132 +91,122 @@ async function fetchDashboardData() {
   }
 }
 
-async function handleLogout() {
-  await supabase.auth.signOut()
-  router.push('/login')
+function handleClassroomCreated(newClassroom) {
+  // เพิ่มห้องใหม่เข้าไปในลิสต์ทันที ไม่ต้องรอ refetch ทั้งหมด
+  classrooms.value.unshift({ ...newClassroom, studentCount: 0 })
 }
 
 onMounted(fetchDashboardData)
 </script>
 
 <template>
-  <div class="relative min-h-screen overflow-hidden bg-white">
-    <!-- decorative soft pink blobs -->
-    <div class="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-pink-200/40 blur-3xl"></div>
-    <div class="pointer-events-none absolute top-1/2 -right-24 h-72 w-72 rounded-full bg-rose-100/50 blur-3xl"></div>
+  <div class="notebook-page min-h-dvh">
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+      <div v-if="loading" class="py-20 text-center text-[#8A8072]">กำลังโหลดข้อมูล...</div>
 
-    <!-- top nav -->
-    <header class="relative border-b border-pink-100 bg-white/80 backdrop-blur">
-      <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-pink-400 to-rose-400 text-white text-lg">
-            🎓
-          </div>
-          <span class="font-semibold text-gray-800">Smart Classroom</span>
-        </div>
-        <button
-          @click="handleLogout"
-          class="text-sm font-medium text-pink-500 hover:text-pink-600 hover:underline"
-        >
-          ออกจากระบบ
-        </button>
-      </div>
-    </header>
-
-    <main class="relative max-w-5xl mx-auto px-4 py-8">
-      <div v-if="loading" class="text-center text-gray-400 py-20">กำลังโหลดข้อมูล...</div>
-
-      <div v-else-if="errorMsg" class="text-center text-red-500 bg-red-50 border border-red-100 rounded-xl py-4 px-4">
+      <div v-else-if="errorMsg" class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-4 py-4 text-center text-sm font-medium text-[#B8402A]">
         {{ errorMsg }}
       </div>
 
       <div v-else>
         <!-- greeting + create button -->
-        <div class="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 class="text-2xl font-bold text-gray-800">
-              สวัสดี{{ profile?.full_name ? ` ครู${profile.full_name}` : '' }} 👋
+            <h1 class="title-font text-2xl font-bold text-[#2A2521] sm:text-3xl">
+              สวัสดี{{ profile?.name ? ` ครู${profile.name}` : '' }} 👋
             </h1>
-            <p class="text-gray-400 mt-1">ภาพรวมห้องเรียนที่คุณสอน</p>
+            <p class="mt-1.5 text-[#8A8072]">ภาพรวมห้องเรียนที่คุณสอน</p>
           </div>
-          <router-link
-            to="/classrooms/new"
-            class="inline-flex items-center justify-center bg-gradient-to-r from-pink-400 to-rose-400 text-white font-medium text-sm rounded-xl px-5 py-2.5 shadow-md shadow-pink-200 hover:shadow-lg hover:from-pink-500 hover:to-rose-500 transition-all"
+          <button
+            @click="showCreateModal = true"
+            class="stamp-btn group inline-flex items-center justify-center gap-1.5 rounded-full bg-[#FF6B4A] px-5 py-3 text-sm font-semibold text-white transition-transform active:scale-95 sm:self-auto"
           >
-            + สร้างห้องเรียนใหม่
-          </router-link>
+            <svg class="h-4 w-4 transition-transform group-hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            สร้างห้องเรียนใหม่
+          </button>
         </div>
 
         <!-- stat cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div class="rounded-2xl border border-pink-100 bg-white p-5 shadow-sm shadow-pink-100/60">
-            <p class="text-sm text-gray-400">ห้องเรียนที่สอน</p>
-            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.classroomCount }}</p>
+        <div class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div class="note-card p-5">
+            <p class="text-sm text-[#8A8072]">ห้องเรียนที่สอน</p>
+            <p class="title-font mt-1 text-3xl font-bold text-[#2A2521]">{{ stats.classroomCount }}</p>
           </div>
-          <div class="rounded-2xl border border-pink-100 bg-white p-5 shadow-sm shadow-pink-100/60">
-            <p class="text-sm text-gray-400">นักเรียนทั้งหมด</p>
-            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.studentCount }}</p>
+          <div class="note-card p-5">
+            <p class="text-sm text-[#8A8072]">นักเรียนทั้งหมด</p>
+            <p class="title-font mt-1 text-3xl font-bold text-[#2A2521]">{{ stats.studentCount }}</p>
           </div>
-          <div class="rounded-2xl border border-pink-100 bg-white p-5 shadow-sm shadow-pink-100/60">
-            <p class="text-sm text-gray-400">งานที่รอตรวจ</p>
-            <p class="text-3xl font-bold text-gray-800 mt-1">{{ stats.pendingGrading }}</p>
+          <div class="note-card p-5">
+            <p class="text-sm text-[#8A8072]">งานที่รอตรวจ</p>
+            <p class="title-font mt-1 text-3xl font-bold text-[#FF6B4A]">{{ stats.pendingGrading }}</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- classrooms list -->
-          <section class="lg:col-span-2 rounded-2xl border border-pink-100 bg-white p-6 shadow-sm shadow-pink-100/60">
-            <h2 class="font-semibold text-gray-800 mb-4">ห้องเรียนของฉัน</h2>
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <!-- classrooms grid -->
+          <section class="note-card p-6 lg:col-span-2">
+            <h2 class="title-font mb-4 font-semibold text-[#2A2521]">ห้องเรียนของฉัน</h2>
 
-            <div v-if="classrooms.length === 0" class="text-sm text-gray-400 py-6 text-center">
+            <div v-if="classrooms.length === 0" class="py-6 text-center text-sm text-[#8A8072]">
               ยังไม่มีห้องเรียน ลองสร้างห้องแรกของคุณเลย
             </div>
 
-            <ul v-else class="space-y-3">
-              <li
-                v-for="room in classrooms"
+            <div v-else class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div
+                v-for="(room, i) in classrooms"
                 :key="room.id"
-                class="flex items-center justify-between rounded-xl border border-pink-50 bg-pink-50/40 px-4 py-3 hover:bg-pink-50 transition cursor-pointer"
+                class="classroom-card cursor-pointer overflow-hidden rounded-2xl border border-[#E4DCC8] bg-[#FFFDF8] transition-colors hover:border-[#FF6B4A]/40"
               >
-                <div>
-                  <p class="font-medium text-gray-800">{{ room.name }}</p>
-                  <p class="text-xs text-gray-400">รหัสห้อง: {{ room.class_code }} · นักเรียน {{ room.studentCount }} คน</p>
+                <div class="h-2.5" :style="{ background: accentFor(i) }"></div>
+                <div class="p-4">
+                  <p class="truncate font-medium text-[#2A2521]">{{ room.name }}</p>
+                  <p class="mt-1 text-xs text-[#8A8072]">ระดับชั้น: {{ room.grade_level || '—' }}</p>
+                  <p class="text-xs text-[#8A8072]">รหัสชั้นเรียน: {{ room.class_code }} · นักเรียน {{ room.studentCount }} คน</p>
+
+                  <div class="mt-3 flex items-center gap-2 border-t border-dashed border-[#E4DCC8] pt-2.5">
+                    <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-[11px] font-semibold text-white">
+                      {{ initial }}
+                    </div>
+                    <span class="truncate text-xs text-[#6B6255]">ครู{{ profile?.name }}</span>
+                  </div>
                 </div>
-                <span class="text-pink-400">›</span>
-              </li>
-            </ul>
+              </div>
+            </div>
           </section>
 
           <!-- AI class overview -->
           <div class="space-y-6">
-            <section class="rounded-2xl bg-gradient-to-br from-pink-400 to-rose-400 p-6 text-white shadow-md shadow-pink-200">
-              <p class="font-semibold mb-1">สรุปภาพรวมจาก AI</p>
-              <p class="text-sm text-white/90 mb-4">
+            <section class="ai-card p-6 text-white">
+              <p class="title-font mb-1 font-semibold">สรุปภาพรวมจาก AI</p>
+              <p class="mb-4 text-sm text-white/90">
                 ดูจุดอ่อนของนักเรียนทั้งห้อง วิเคราะห์จากคะแนน การส่งงาน และคุณภาพรายงาน
               </p>
               <router-link
                 to="/ai-insights"
-                class="inline-block bg-white text-pink-500 font-medium text-sm rounded-xl px-4 py-2 hover:bg-pink-50 transition"
+                class="inline-block rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#FF6B4A] transition hover:bg-[#FFF6F0]"
               >
                 ดูสรุปภาพรวม
               </router-link>
             </section>
 
-            <section class="rounded-2xl border border-pink-100 bg-white p-6 shadow-sm shadow-pink-100/60">
-              <h2 class="font-semibold text-gray-800 mb-4">ทางลัด</h2>
+            <section class="note-card p-6">
+              <h2 class="title-font mb-4 font-semibold text-[#2A2521]">ทางลัด</h2>
               <ul class="space-y-2 text-sm">
                 <li>
-                  <router-link to="/quizzes" class="text-pink-500 hover:text-pink-600 hover:underline">
+                  <router-link to="/quizzes" class="text-[#FF6B4A] hover:underline">
                     คลังแบบทดสอบ
                   </router-link>
                 </li>
                 <li>
-                  <router-link to="/assignments" class="text-pink-500 hover:text-pink-600 hover:underline">
+                  <router-link to="/assignments" class="text-[#FF6B4A] hover:underline">
                     มอบหมายการบ้าน
                   </router-link>
                 </li>
                 <li>
-                  <router-link to="/gradebook" class="text-pink-500 hover:text-pink-600 hover:underline">
+                  <router-link to="/gradebook" class="text-[#FF6B4A] hover:underline">
                     สมุดบันทึกคะแนน
                   </router-link>
                 </li>
@@ -219,5 +216,79 @@ onMounted(fetchDashboardData)
         </div>
       </div>
     </main>
+
+    <CreateClassroomModal
+      v-model="showCreateModal"
+      @created="handleClassroomCreated"
+    />
   </div>
 </template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap');
+
+.notebook-page {
+  background-color: #FBF6EC;
+  background-image: radial-gradient(#E4DCC8 1px, transparent 1px);
+  background-size: 22px 22px;
+  font-family: 'Sarabun', sans-serif;
+}
+
+.title-font {
+  font-family: 'Kanit', sans-serif;
+}
+
+.note-card {
+  position: relative;
+  border-radius: 18px;
+  background: #FFFDF8;
+  border: 2px solid #E4DCC8;
+  box-shadow: 0 2px 8px rgba(42, 37, 33, 0.06);
+}
+.note-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: #F1EADC;
+  border-radius: 0 18px 0 18px;
+}
+
+.classroom-card {
+  box-shadow: 0 1px 3px rgba(42, 37, 33, 0.05);
+}
+.classroom-card:hover {
+  box-shadow: 0 3px 10px rgba(42, 37, 33, 0.08);
+}
+
+.ai-card {
+  position: relative;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #FF6B4A, #E0562F);
+  box-shadow: 0 6px 20px rgba(255, 107, 74, 0.25);
+}
+.ai-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 0 18px 0 18px;
+}
+
+.stamp-btn {
+  box-shadow: 0 3px 0 #C94A2E;
+}
+.stamp-btn:hover {
+  box-shadow: 0 3px 0 #C94A2E;
+  filter: brightness(1.05);
+}
+.stamp-btn:active {
+  box-shadow: 0 1px 0 #C94A2E;
+  transform: translateY(2px);
+}
+</style>

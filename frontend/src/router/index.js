@@ -12,6 +12,11 @@ const routes = [
   { path: '/teacher-dashboard', component: TeacherDashboard, meta: { role: 'teacher' } },
   { path: '/ai-tutor', name: 'ai-tutor', component: () => import('../views/student/AiTutor.vue') },
   { path: '/', redirect: '/login' },
+  // ต้องอยู่ก่อน '/classrooms/:id' ไม่งั้น "new" จะถูกตีความเป็นค่า :id แทน
+
+  { path: '/classrooms/:id', name: 'classroom-detail', component: () => import('../views/ClassroomDetail.vue') },
+  {path: '/profile',name: 'profile',component: () => import('../views/Profile.vue') }, 
+
 ]
 
 const router = createRouter({
@@ -19,7 +24,9 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach(async (to, from, next) => {
+
+
+router.beforeEach(async (to) => {
   // ใช้ getSession() ไม่ใช่ getUser() ตอนเช็คตอน guard
   // เพราะ getSession() อ่านจาก local storage ตรงๆ ไม่ต้องรอ network round-trip ไป verify กับ server
   const { data: { session } } = await supabase.auth.getSession()
@@ -27,7 +34,7 @@ router.beforeEach(async (to, from, next) => {
 
   if (!to.meta.public && !isLoggedIn) {
     // หน้านี้ต้อง login แต่ยังไม่ login -> เด้งไป login
-    return next('/login')
+    return '/login'
   }
 
   if (to.meta.public && isLoggedIn) {
@@ -37,7 +44,7 @@ router.beforeEach(async (to, from, next) => {
       .select('role')
       .eq('id', session.user.id)
       .single()
-    return next(profile?.role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard')
+    return profile?.role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard'
   }
 
   if (to.meta.role && isLoggedIn) {
@@ -48,11 +55,11 @@ router.beforeEach(async (to, from, next) => {
       .eq('id', session.user.id)
       .single()
     if (profile?.role !== to.meta.role) {
-      return next(profile?.role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard')
+      return profile?.role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard'
     }
   }
 
-  next()
+  // ไม่ return อะไร = อนุญาตให้ไปต่อ (เทียบเท่า next() เดิม)
 })
 
 export default router

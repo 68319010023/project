@@ -9,6 +9,7 @@ const route = useRoute()
 
 const publicPaths = ['/login', '/register']
 const isPublicPage = computed(() => publicPaths.includes(route.path))
+const onAiTutorPage = computed(() => route.path === '/ai-tutor')
 const showHeader = computed(() => isLoggedIn.value && !isPublicPage.value)
 const isLoggedIn = ref(false)
 const profile = ref(null)
@@ -25,7 +26,6 @@ const navLinks = computed(() => [
   { label: 'หน้าหลัก', to: homePath.value },
   
 ])
-const onAiTutorPage = computed(() => route.path === '/ai-tutor')
 
 function isActive(path) {
   return route.path === path
@@ -70,9 +70,8 @@ supabase.auth.onAuthStateChange(() => {
 })
 
 // แถบ progress บาง ๆ ตอนเปลี่ยนหน้า
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, from) => {
   if (to.path !== from.path) routeLoading.value = true
-  next()
 })
 router.afterEach(() => {
   setTimeout(() => { routeLoading.value = false }, 250)
@@ -90,7 +89,7 @@ router.afterEach(() => {
     </div>
   </div>
 
-  <div v-else class="notebook-page min-h-dvh">
+  <div v-else class="notebook-page flex h-dvh flex-col overflow-hidden">
     <!-- แถบ progress บาง ๆ ตอนเปลี่ยนหน้า -->
     <div
       v-if="routeLoading"
@@ -98,34 +97,46 @@ router.afterEach(() => {
       style="animation: loadbar 0.8s ease-in-out infinite;"
     ></div>
 
-    <header v-if="showHeader" class="sticky top-0 z-40 border-b-2 border-[#E4DCC8] bg-[#FBF6EC]/95 backdrop-blur">
+    <header v-if="showHeader" class="relative z-40 shrink-0 border-b-2 border-[#E4DCC8] bg-[#FBF6EC]/95 backdrop-blur">
       <div class="flex h-16 items-center justify-between px-5 md:px-8">
-        <div class="flex items-center gap-6">
-          <router-link :to="homePath" class="pencil-badge flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FF6B4A]">
-            <span class="text-sm text-white">✎</span>
+        <div class="flex items-center gap-7">
+          <router-link :to="homePath" class="flex shrink-0 items-center gap-2.5">
+            <span class="pencil-badge flex h-9 w-9 items-center justify-center rounded-full bg-[#FF6B4A]">
+              <span class="text-sm text-white">✎</span>
+            </span>
+            <span class="title-font hidden text-[15px] font-semibold tracking-tight text-[#2A2521] sm:inline">
+              สมุดเรียน
+            </span>
           </router-link>
 
           <nav class="hidden items-center gap-1 md:flex">
             <router-link
               v-for="link in navLinks" :key="link.to" :to="link.to"
-              class="title-font rounded-full px-3.5 py-2 text-sm font-medium transition-colors"
-              :class="isActive(link.to) ? 'bg-[#FF6B4A]/10 text-[#FF6B4A]' : 'text-[#8A8072] hover:text-[#2A2521]'"
+              class="nav-link title-font relative px-1 py-2 text-sm font-medium transition-colors"
+              :class="isActive(link.to) ? 'text-[#2A2521]' : 'text-[#8A8072] hover:text-[#2A2521]'"
             >
               {{ link.label }}
+              <span
+                class="absolute -bottom-0.5 left-0 h-[2.5px] w-full rounded-full bg-[#FF6B4A] transition-transform duration-200"
+                :class="isActive(link.to) ? 'scale-x-100' : 'scale-x-0'"
+              ></span>
             </router-link>
           </nav>
         </div>
 
-        <div class="hidden items-center gap-3 md:flex">
-          <div class="flex h-9 w-9 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
-            {{ initial }}
-          </div>
-          <button @click="handleLogout" class="stamp-btn-sm rounded-full bg-[#2A2521] px-4 py-2 text-sm font-medium text-[#FBF6EC] transition-colors hover:bg-[#2A2521]/90">
+        <div class="hidden items-center gap-4 md:flex">
+          <router-link to="/profile" class="flex items-center gap-2.5 border-r-2 border-dashed border-[#E4DCC8] pr-4 transition-opacity hover:opacity-75">
+            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
+              {{ initial }}
+            </div>
+            <span class="max-w-[9rem] truncate text-sm font-medium text-[#6B6255]">{{ profile?.name }}</span>
+          </router-link>
+          <button @click="handleLogout" class="rounded-full border-2 border-[#2A2521] px-4 py-1.5 text-sm font-medium text-[#2A2521] transition-colors hover:bg-[#2A2521] hover:text-[#FBF6EC]">
             ออกจากระบบ
           </button>
         </div>
 
-        <button @click="mobileMenuOpen = !mobileMenuOpen" class="px-2 text-xl leading-none text-[#2A2521] md:hidden" aria-label="เปิดเมนู">
+        <button @click="mobileMenuOpen = !mobileMenuOpen" class="flex h-9 w-9 items-center justify-center rounded-full text-xl leading-none text-[#2A2521] md:hidden" aria-label="เปิดเมนู">
           {{ mobileMenuOpen ? '✕' : '☰' }}
         </button>
       </div>
@@ -133,26 +144,30 @@ router.afterEach(() => {
       <div v-if="mobileMenuOpen" class="space-y-1 border-t-2 border-dashed border-[#E4DCC8] px-5 py-3 md:hidden">
         <router-link
           v-for="link in navLinks" :key="link.to" :to="link.to" @click="mobileMenuOpen = false"
-          class="block rounded-full px-3 py-2.5 text-sm font-medium"
+          class="block rounded-xl px-3 py-2.5 text-sm font-medium"
           :class="isActive(link.to) ? 'bg-[#FF6B4A]/10 text-[#FF6B4A]' : 'text-[#8A8072]'"
         >
           {{ link.label }}
         </router-link>
         <div class="mt-1 flex items-center gap-3 border-t border-dashed border-[#E4DCC8] px-3 pt-3">
-          <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
-            {{ initial }}
-          </div>
-          <span class="flex-1 truncate text-sm text-[#6B6255]">{{ profile?.name }}</span>
-          <button @click="handleLogout" class="rounded-full bg-[#2A2521] px-4 py-1.5 text-sm font-medium text-[#FBF6EC]">
+          <router-link :to="'/profile'" @click="mobileMenuOpen = false" class="flex flex-1 min-w-0 items-center gap-3">
+            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
+              {{ initial }}
+            </div>
+            <span class="truncate text-sm text-[#6B6255]">{{ profile?.name }}</span>
+          </router-link>
+          <button @click="handleLogout" class="rounded-full border-2 border-[#2A2521] px-4 py-1.5 text-sm font-medium text-[#2A2521]">
             ออกจากระบบ
           </button>
         </div>
       </div>
     </header>
 
-    <router-view />
+    <div class="min-h-0 flex-1">
+      <router-view />
+    </div>
 
-    <div v-if="showHeader && !onAiTutorPage" class="fixed bottom-5 right-5 z-50">
+    <div v-if="isLoggedIn && !isPublicPage && !onAiTutorPage" class="fixed bottom-5 right-5 z-50">
       <div v-if="aiPopupOpen" class="note-card mb-3 w-72 p-5">
         <div class="mb-2 flex items-start justify-between">
           <p class="title-font font-semibold text-[#2A2521]">AI ติวเตอร์ 24 ชม.</p>

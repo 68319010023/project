@@ -21,6 +21,17 @@ const stats = computed(() => ({
 
 const initial = computed(() => (profile.value?.name ? profile.value.name.trim().charAt(0) : '?'))
 
+// สีแถบบนของการ์ดห้องเรียน สลับวนตามธีมสมุด (เหมือนฝั่งครู)
+const cardAccents = ['#FF6B4A', '#7C9473', '#C99B5C']
+function accentFor(index) {
+  return cardAccents[index % cardAccents.length]
+}
+
+function teacherInitial(room) {
+  const name = room.teacher?.name
+  return name ? name.trim().charAt(0) : '?'
+}
+
 async function fetchDashboardData() {
   loading.value = true
   errorMsg.value = ''
@@ -40,9 +51,14 @@ async function fetchDashboardData() {
     if (profileError) throw profileError
     profile.value = profileData
 
+    // หมายเหตุ: เพิ่ม grade_level และข้อมูลครูผู้สอน (teacher) เข้ามาในคำสั่ง select
+    // - grade_level ต้องมีคอลัมน์นี้ในตาราง classrooms ก่อน (ดู ALTER TABLE ที่ให้ไว้ก่อนหน้า)
+    // - teacher:profiles(name) อ้างอิงผ่าน classrooms.teacher_id -> profiles.id
+    //   ถ้า Supabase หา relationship ไม่เจอ (error PGRST200/ambiguous) ให้เปลี่ยนเป็น
+    //   teacher:profiles!classrooms_teacher_id_fkey ( name ) โดยใส่ชื่อ FK constraint จริงของโปรเจกต์
     const { data: enrollments, error: classroomError } = await supabase
       .from('classroom_enrollments')
-      .select('classrooms ( id, name, class_code )')
+      .select('classrooms ( id, name, class_code, grade_level, teacher:profiles ( name ) )')
       .eq('student_id', user.id)
     if (classroomError) throw classroomError
     classrooms.value = (enrollments || []).map((row) => row.classrooms).filter(Boolean)
@@ -152,18 +168,26 @@ onMounted(fetchDashboardData)
               <p class="mt-1 text-xs text-[#B0A692]">ใส่รหัสห้องเรียนจากครูผู้สอนเพื่อเข้าร่วม</p>
             </div>
 
-            <ul v-else class="space-y-2">
-              <li v-for="room in classrooms" :key="room.id"
-                class="flex cursor-pointer items-center justify-between rounded-xl border-2 border-dashed border-[#E4DCC8] bg-[#FFFDF8] px-4 py-3 transition-colors hover:border-[#FF6B4A]/40 hover:bg-[#FF6B4A]/5">
-                <div>
-                  <p class="text-sm font-medium text-[#2A2521]">{{ room.name }}</p>
-                  <p class="mt-0.5 text-xs tracking-wide text-[#B0A692]">
-                    {{ room.class_code }}
-                  </p>
+            <div v-else class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div
+                v-for="(room, i) in classrooms"
+                :key="room.id"
+                class="classroom-card cursor-pointer overflow-hidden rounded-2xl border border-[#E4DCC8] bg-[#FFFDF8] transition-colors hover:border-[#FF6B4A]/40"
+              >
+                <div class="h-2.5" :style="{ background: accentFor(i) }"></div>
+                <div class="p-4">
+                  <p class="truncate text-sm font-medium text-[#2A2521]">{{ room.name }}</p>
+                  <p class="mt-1 text-xs text-[#8A8072]">ระดับชั้น: {{ room.grade_level || '—' }}</p>
+
+                  <div class="mt-3 flex items-center gap-2 border-t border-dashed border-[#E4DCC8] pt-2.5">
+                    <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-[11px] font-semibold text-white">
+                      {{ teacherInitial(room) }}
+                    </div>
+                    <span class="truncate text-xs text-[#6B6255]">ครู{{ room.teacher?.name || '—' }}</span>
+                  </div>
                 </div>
-                <span class="text-[#FF6B4A]">→</span>
-              </li>
-            </ul>
+              </div>
+            </div>
           </section>
 
           <!-- right column -->
@@ -225,5 +249,12 @@ onMounted(fetchDashboardData)
   height: 16px;
   background: #F1EADC;
   border-radius: 0 18px 0 18px;
+}
+
+.classroom-card {
+  box-shadow: 0 1px 3px rgba(42, 37, 33, 0.05);
+}
+.classroom-card:hover {
+  box-shadow: 0 3px 10px rgba(42, 37, 33, 0.08);
 }
 </style>

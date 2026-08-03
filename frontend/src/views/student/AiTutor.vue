@@ -65,38 +65,8 @@ onMounted(scrollToBottom)
 </script>
 
 <template>
-  <div class="notebook-page relative flex min-h-dvh flex-col overflow-hidden">
-    <!-- top nav: notebook tab -->
-    <header class="relative z-10 shrink-0 border-b-2 border-[#E4DCC8] bg-[#FBF6EC]/95 backdrop-blur">
-      <div class="mx-auto flex max-w-3xl items-center gap-3 px-5 py-4">
-        <button
-          @click="router.back()"
-          class="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#2A2521] text-[#2A2521] transition hover:bg-[#2A2521] hover:text-[#FBF6EC]"
-          aria-label="ย้อนกลับ"
-        >
-          ‹
-        </button>
-
-        <div class="pencil-badge flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#FF6B4A] text-lg text-white">
-          ✎
-        </div>
-
-        <div class="min-w-0">
-          <p class="title-font truncate text-[19px] font-semibold tracking-tight text-[#2A2521]">
-            AI ติวเตอร์
-          </p>
-          <p class="truncate text-[12px] text-[#8A8072]">
-            พร้อมช่วยทบทวนบทเรียน · ตลอด 24 ชม.
-          </p>
-        </div>
-
-        <span class="ml-auto hidden shrink-0 rounded-full border border-[#7C9473]/40 bg-[#7C9473]/10 px-3 py-1 text-[11px] font-medium text-[#5C7355] sm:inline-block">
-          ● พร้อมตอบ
-        </span>
-      </div>
-    </header>
-
-    <!-- chat area -->
+  <div class="notebook-page relative flex h-full min-h-0 flex-col overflow-hidden">
+    <!-- chat area (global navbar from App.vue already provides top nav + back-to-home) -->
     <main class="relative z-10 mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col px-4 py-5 sm:px-5">
       <div
         ref="scrollArea"
