@@ -1,8 +1,9 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { supabase } from './supabase'
 import LoadingSpinner from './components/LoadingSpinner.vue'
+import { useProfile } from './composables/useProfile'
 
 const router = useRouter()
 const route = useRoute()
@@ -11,20 +12,23 @@ const publicPaths = ['/login', '/register']
 const isPublicPage = computed(() => publicPaths.includes(route.path))
 const onAiTutorPage = computed(() => route.path === '/ai-tutor')
 const showHeader = computed(() => isLoggedIn.value && !isPublicPage.value)
-const isLoggedIn = ref(false)
-const profile = ref(null)
+
+// ⭐ ดึงมาจาก shared state ตัวเดียวกับที่ Profile.vue ใช้
+// พอ Profile.vue แก้ชื่อ/รูป ตรงนี้จะอัปเดตตามทันทีโดยไม่ต้อง refresh
+const { name, role, avatarUrl, isLoggedIn, loadProfile, clearProfile } = useProfile()
+
 const mobileMenuOpen = ref(false)
 const aiPopupOpen = ref(false)
 const appReady = ref(false)
 const routeLoading = ref(false)
 
-const initial = computed(() => (profile.value?.name ? profile.value.name.trim().charAt(0) : '?'))
+// ⭐ ใช้ name/role จาก useProfile() ตรงๆ ไม่ใช่ profile.value อีกต่อไป
+const initial = computed(() => (name.value ? name.value.trim().charAt(0) : '?'))
 const homePath = computed(() =>
-  profile.value?.role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard'
+  role.value === 'teacher' ? '/teacher-dashboard' : '/student-dashboard'
 )
 const navLinks = computed(() => [
   { label: 'หน้าหลัก', to: homePath.value },
-  
 ])
 
 function isActive(path) {
@@ -36,26 +40,14 @@ function goToAiTutor() {
   router.push('/ai-tutor')
 }
 
+// ⭐ ใช้ loadProfile() จาก composable แทนการ query เอง
 async function loadSession() {
-  const { data: { user } } = await supabase.auth.getUser()
-  isLoggedIn.value = !!user
-
-  if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('name, role')
-      .eq('id', user.id)
-      .single()
-    profile.value = data
-  } else {
-    profile.value = null
-  }
+  await loadProfile()
 }
 
 async function handleLogout() {
   await supabase.auth.signOut()
-  isLoggedIn.value = false
-  profile.value = null
+  clearProfile()
   mobileMenuOpen.value = false
   router.push('/login')
 }
@@ -126,10 +118,16 @@ router.afterEach(() => {
 
         <div class="hidden items-center gap-4 md:flex">
           <router-link to="/profile" class="flex items-center gap-2.5 border-r-2 border-dashed border-[#E4DCC8] pr-4 transition-opacity hover:opacity-75">
-            <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt=""
+              class="h-8 w-8 shrink-0 rounded-full object-cover"
+            />
+            <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
               {{ initial }}
             </div>
-            <span class="max-w-[9rem] truncate text-sm font-medium text-[#6B6255]">{{ profile?.name }}</span>
+            <span class="max-w-[9rem] truncate text-sm font-medium text-[#6B6255]">{{ name }}</span>
           </router-link>
           <button @click="handleLogout" class="rounded-full border-2 border-[#2A2521] px-4 py-1.5 text-sm font-medium text-[#2A2521] transition-colors hover:bg-[#2A2521] hover:text-[#FBF6EC]">
             ออกจากระบบ
@@ -151,10 +149,16 @@ router.afterEach(() => {
         </router-link>
         <div class="mt-1 flex items-center gap-3 border-t border-dashed border-[#E4DCC8] px-3 pt-3">
           <router-link :to="'/profile'" @click="mobileMenuOpen = false" class="flex flex-1 min-w-0 items-center gap-3">
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt=""
+              class="h-8 w-8 shrink-0 rounded-full object-cover"
+            />
+            <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-xs font-semibold text-white">
               {{ initial }}
             </div>
-            <span class="truncate text-sm text-[#6B6255]">{{ profile?.name }}</span>
+            <span class="truncate text-sm text-[#6B6255]">{{ name }}</span>
           </router-link>
           <button @click="handleLogout" class="rounded-full border-2 border-[#2A2521] px-4 py-1.5 text-sm font-medium text-[#2A2521]">
             ออกจากระบบ
@@ -163,7 +167,7 @@ router.afterEach(() => {
       </div>
     </header>
 
-    <div class="min-h-0 flex-1">
+    <div class="app-scroll min-h-0 flex-1 overflow-y-auto">
       <router-view />
     </div>
 
@@ -192,6 +196,14 @@ router.afterEach(() => {
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Sarabun:wght@400;500;600&display=swap');
+
+.app-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* old Edge/IE */
+}
+.app-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, new Edge */
+}
 
 .notebook-page {
   background-color: #FBF6EC;

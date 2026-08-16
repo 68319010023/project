@@ -2,9 +2,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../../supabase'
-
+import JoinClassroomModal from './JoinClassroomModal.vue'
 const router = useRouter()
-
+const showJoinModal = ref(false)
 const loading = ref(true)
 const errorMsg = ref('')
 
@@ -119,14 +119,16 @@ onMounted(fetchDashboardData)
         <!-- ID card -->
         <div class="note-card mb-8 overflow-hidden">
           <div class="flex items-center gap-4 px-6 py-5">
-            <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#FF6B4A] text-xl font-semibold text-white">
+            <div
+              class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#FF6B4A] text-xl font-semibold text-white">
               {{ initial }}
             </div>
             <div>
               <p class="title-font text-lg font-semibold text-[#2A2521]">
                 {{ profile?.name || 'ไม่ระบุชื่อ' }}
               </p>
-              <span class="mt-1 inline-block rounded-full bg-[#7C9473]/10 px-2.5 py-0.5 text-xs font-medium text-[#5C7355]">
+              <span
+                class="mt-1 inline-block rounded-full bg-[#7C9473]/10 px-2.5 py-0.5 text-xs font-medium text-[#5C7355]">
                 นักเรียน
               </span>
             </div>
@@ -166,21 +168,24 @@ onMounted(fetchDashboardData)
             <div v-if="classrooms.length === 0" class="py-10 text-center">
               <p class="text-sm text-[#8A8072]">ยังไม่มีห้องเรียนที่ลงทะเบียน</p>
               <p class="mt-1 text-xs text-[#B0A692]">ใส่รหัสห้องเรียนจากครูผู้สอนเพื่อเข้าร่วม</p>
+              <button @click="showJoinModal = true"
+                class="mt-4 rounded-full bg-[#FF6B4A] px-5 py-2 text-sm font-semibold text-white">
+                เข้าร่วมห้องเรียน
+              </button>
             </div>
 
             <div v-else class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <div
-                v-for="(room, i) in classrooms"
-                :key="room.id"
-                class="classroom-card cursor-pointer overflow-hidden rounded-2xl border border-[#E4DCC8] bg-[#FFFDF8] transition-colors hover:border-[#FF6B4A]/40"
-              >
+              <div v-for="(room, i) in classrooms" :key="room.id"
+                @click="router.push(`/classrooms/${room.id}`)"
+                class="classroom-card cursor-pointer overflow-hidden rounded-2xl border border-[#E4DCC8] bg-[#FFFDF8] transition-colors hover:border-[#FF6B4A]/40">
                 <div class="h-2.5" :style="{ background: accentFor(i) }"></div>
                 <div class="p-4">
                   <p class="truncate text-sm font-medium text-[#2A2521]">{{ room.name }}</p>
                   <p class="mt-1 text-xs text-[#8A8072]">ระดับชั้น: {{ room.grade_level || '—' }}</p>
 
                   <div class="mt-3 flex items-center gap-2 border-t border-dashed border-[#E4DCC8] pt-2.5">
-                    <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-[11px] font-semibold text-white">
+                    <div
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-[11px] font-semibold text-white">
                       {{ teacherInitial(room) }}
                     </div>
                     <span class="truncate text-xs text-[#6B6255]">ครู{{ room.teacher?.name || '—' }}</span>
@@ -193,9 +198,14 @@ onMounted(fetchDashboardData)
           <!-- right column -->
           <div class="space-y-5">
             <section class="note-card p-5">
-              <h2 class="title-font mb-4 text-sm font-semibold uppercase tracking-wide text-[#2A2521]">
-                งานใกล้ครบกำหนด
-              </h2>
+              <div class="mb-4 flex items-center justify-between">
+                <h2 class="title-font text-sm font-semibold uppercase tracking-wide text-[#2A2521]">
+                  งานใกล้ครบกำหนด
+                </h2>
+                <button @click="showJoinModal = true" class="text-xs font-medium text-[#FF6B4A] hover:underline">
+                  + เข้าร่วมห้องใหม่
+                </button>
+              </div>
 
               <div v-if="upcomingAssignments.length === 0" class="py-6 text-center">
                 <p class="text-sm text-[#8A8072]">ไม่มีงานที่ต้องส่งตอนนี้</p>
@@ -205,7 +215,8 @@ onMounted(fetchDashboardData)
                 <li v-for="item in upcomingAssignments" :key="item.id"
                   class="flex items-center justify-between gap-2 text-sm">
                   <span class="truncate text-[#2A2521]">{{ item.title }}</span>
-                  <span class="whitespace-nowrap rounded-full bg-[#FF6B4A]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8402A]">
+                  <span
+                    class="whitespace-nowrap rounded-full bg-[#FF6B4A]/10 px-2.5 py-0.5 text-xs font-medium text-[#B8402A]">
                     {{ formatDueDate(item.due_date) }}
                   </span>
                 </li>
@@ -215,6 +226,10 @@ onMounted(fetchDashboardData)
         </div>
       </div>
     </main>
+    <JoinClassroomModal
+  v-model="showJoinModal"
+  @joined="fetchDashboardData"
+/>
   </div>
 </template>
 
@@ -254,6 +269,7 @@ onMounted(fetchDashboardData)
 .classroom-card {
   box-shadow: 0 1px 3px rgba(42, 37, 33, 0.05);
 }
+
 .classroom-card:hover {
   box-shadow: 0 3px 10px rgba(42, 37, 33, 0.08);
 }

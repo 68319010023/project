@@ -104,7 +104,8 @@ onMounted(fetchDashboardData)
     <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
       <div v-if="loading" class="py-20 text-center text-[#8A8072]">กำลังโหลดข้อมูล...</div>
 
-      <div v-else-if="errorMsg" class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-4 py-4 text-center text-sm font-medium text-[#B8402A]">
+      <div v-else-if="errorMsg"
+        class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-4 py-4 text-center text-sm font-medium text-[#B8402A]">
         {{ errorMsg }}
       </div>
 
@@ -117,11 +118,10 @@ onMounted(fetchDashboardData)
             </h1>
             <p class="mt-1.5 text-[#8A8072]">ภาพรวมห้องเรียนที่คุณสอน</p>
           </div>
-          <button
-            @click="showCreateModal = true"
-            class="stamp-btn group inline-flex items-center justify-center gap-1.5 rounded-full bg-[#FF6B4A] px-5 py-3 text-sm font-semibold text-white transition-transform active:scale-95 sm:self-auto"
-          >
-            <svg class="h-4 w-4 transition-transform group-hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <button @click="showCreateModal = true"
+            class="stamp-btn group inline-flex items-center justify-center gap-1.5 rounded-full bg-[#FF6B4A] px-5 py-3 text-sm font-semibold text-white transition-transform active:scale-95 sm:self-auto">
+            <svg class="h-4 w-4 transition-transform group-hover:rotate-90" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -155,19 +155,18 @@ onMounted(fetchDashboardData)
             </div>
 
             <div v-else class="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <div
-                v-for="(room, i) in classrooms"
-                :key="room.id"
-                class="classroom-card cursor-pointer overflow-hidden rounded-2xl border border-[#E4DCC8] bg-[#FFFDF8] transition-colors hover:border-[#FF6B4A]/40"
-              >
+              <div v-for="(room, i) in classrooms" :key="room.id" @click="router.push(`/classrooms/${room.id}`)"
+                class="classroom-card cursor-pointer overflow-hidden rounded-2xl border border-[#E4DCC8] bg-[#FFFDF8] transition-colors hover:border-[#FF6B4A]/40">
                 <div class="h-2.5" :style="{ background: accentFor(i) }"></div>
                 <div class="p-4">
                   <p class="truncate font-medium text-[#2A2521]">{{ room.name }}</p>
                   <p class="mt-1 text-xs text-[#8A8072]">ระดับชั้น: {{ room.grade_level || '—' }}</p>
-                  <p class="text-xs text-[#8A8072]">รหัสชั้นเรียน: {{ room.class_code }} · นักเรียน {{ room.studentCount }} คน</p>
+                  <p class="text-xs text-[#8A8072]">รหัสชั้นเรียน: {{ room.class_code }} · นักเรียน {{ room.studentCount
+                    }} คน</p>
 
                   <div class="mt-3 flex items-center gap-2 border-t border-dashed border-[#E4DCC8] pt-2.5">
-                    <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-[11px] font-semibold text-white">
+                    <div
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#7C9473] text-[11px] font-semibold text-white">
                       {{ initial }}
                     </div>
                     <span class="truncate text-xs text-[#6B6255]">ครู{{ profile?.name }}</span>
@@ -184,10 +183,8 @@ onMounted(fetchDashboardData)
               <p class="mb-4 text-sm text-white/90">
                 ดูจุดอ่อนของนักเรียนทั้งห้อง วิเคราะห์จากคะแนน การส่งงาน และคุณภาพรายงาน
               </p>
-              <router-link
-                to="/ai-insights"
-                class="inline-block rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#FF6B4A] transition hover:bg-[#FFF6F0]"
-              >
+              <router-link to="/ai-insights"
+                class="inline-block rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#FF6B4A] transition hover:bg-[#FFF6F0]">
                 ดูสรุปภาพรวม
               </router-link>
             </section>
@@ -217,10 +214,7 @@ onMounted(fetchDashboardData)
       </div>
     </main>
 
-    <CreateClassroomModal
-      v-model="showCreateModal"
-      @created="handleClassroomCreated"
-    />
+    <CreateClassroomModal v-model="showCreateModal" @created="handleClassroomCreated" />
   </div>
 </template>
 
@@ -245,6 +239,7 @@ onMounted(fetchDashboardData)
   border: 2px solid #E4DCC8;
   box-shadow: 0 2px 8px rgba(42, 37, 33, 0.06);
 }
+
 .note-card::after {
   content: '';
   position: absolute;
@@ -259,6 +254,7 @@ onMounted(fetchDashboardData)
 .classroom-card {
   box-shadow: 0 1px 3px rgba(42, 37, 33, 0.05);
 }
+
 .classroom-card:hover {
   box-shadow: 0 3px 10px rgba(42, 37, 33, 0.08);
 }
@@ -269,6 +265,7 @@ onMounted(fetchDashboardData)
   background: linear-gradient(135deg, #FF6B4A, #E0562F);
   box-shadow: 0 6px 20px rgba(255, 107, 74, 0.25);
 }
+
 .ai-card::after {
   content: '';
   position: absolute;
@@ -283,10 +280,12 @@ onMounted(fetchDashboardData)
 .stamp-btn {
   box-shadow: 0 3px 0 #C94A2E;
 }
+
 .stamp-btn:hover {
   box-shadow: 0 3px 0 #C94A2E;
   filter: brightness(1.05);
 }
+
 .stamp-btn:active {
   box-shadow: 0 1px 0 #C94A2E;
   transform: translateY(2px);

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../supabase'
 
@@ -12,6 +12,55 @@ const role = ref('student')
 const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
+
+// --- ส่วนรูปโปรไฟล์ ---
+const avatarFile = ref(null)       // เก็บไฟล์ที่เลือกไว้ก่อน (ยังไม่อัปโหลด)
+const avatarPreview = ref('')      // url ชั่วคราวสำหรับพรีวิว
+const avatarErrorMsg = ref('')
+
+const initial = computed(() => (fullName.value ? fullName.value.trim().charAt(0) : '?'))
+
+function onAvatarSelected(event) {
+  avatarErrorMsg.value = ''
+  const file = event.target.files[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    avatarErrorMsg.value = 'กรุณาเลือกไฟล์รูปภาพเท่านั้น'
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    avatarErrorMsg.value = 'ขนาดไฟล์ต้องไม่เกิน 2MB'
+    return
+  }
+
+  avatarFile.value = file
+  avatarPreview.value = URL.createObjectURL(file)
+}
+
+// อัปโหลดรูป (เรียกใช้หลัง signUp สำเร็จ และมี session แล้วเท่านั้น)
+async function uploadAvatarForUser(userId) {
+  if (!avatarFile.value) return null
+
+  try {
+    const fileExt = avatarFile.value.name.split('.').pop()
+    const filePath = `${userId}/avatar.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, avatarFile.value, { upsert: true })
+    if (uploadError) throw uploadError
+
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath)
+
+    return `${urlData.publicUrl}?t=${Date.now()}`
+  } catch (err) {
+    console.error('อัปโหลดรูปไม่สำเร็จ:', err)
+    return null
+  }
+}
 
 async function handleRegister() {
   loading.value = true
@@ -36,11 +85,27 @@ async function handleRegister() {
       throw new Error('ไม่สามารถสร้างผู้ใช้ได้ กรุณาลองใหม่')
     }
 
-    successMsg.value = 'สมัครสมาชิกสำเร็จ! กำลังพาไปหน้าล็อกอิน...'
+    // ถ้ามี session ทันที (ไม่ได้เปิด email confirmation) ให้อัปโหลดรูปต่อได้เลย
+    if (authData.session && avatarFile.value) {
+      const publicUrl = await uploadAvatarForUser(authData.user.id)
+      if (publicUrl) {
+        await supabase
+          .from('profiles')
+          .update({ avatar_url: publicUrl })
+          .eq('id', authData.user.id)
+      }
+    }
+
+    if (!authData.session && avatarFile.value) {
+      successMsg.value =
+        'สมัครสมาชิกสำเร็จ! กรุณายืนยันอีเมลก่อน แล้วไปตั้งรูปโปรไฟล์ได้ที่หน้าโปรไฟล์หลังเข้าสู่ระบบ กำลังพาไปหน้าล็อกอิน...'
+    } else {
+      successMsg.value = 'สมัครสมาชิกสำเร็จ! กำลังพาไปหน้าล็อกอิน...'
+    }
 
     setTimeout(() => {
       router.push('/login')
-    }, 1500)
+    }, 1800)
   } catch (err) {
     console.error(err)
     if (err.message?.includes('already registered')) {
@@ -71,6 +136,38 @@ async function handleRegister() {
           สร้างบัญชีใหม่
         </h2>
         <p class="mb-6 text-center text-[13px] text-[#8A8072]">เริ่มต้นห้องเรียนอัจฉริยะของคุณ</p>
+
+        <!-- เลือกรูปโปรไฟล์ -->
+        <div class="mb-5 flex flex-col items-center">
+          <div class="relative">
+            <img
+              v-if="avatarPreview"
+              :src="avatarPreview"
+              alt="avatar preview"
+              class="h-16 w-16 rounded-full object-cover border-2 border-[#E4DCC8]"
+            />
+            <div
+              v-else
+              class="flex h-16 w-16 items-center justify-center rounded-full bg-[#FF6B4A] text-2xl font-semibold text-white"
+            >
+              {{ initial }}
+            </div>
+
+            <label
+              class="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-white border-2 border-[#E4DCC8] text-xs shadow-sm hover:bg-[#F1EADC]"
+            >
+              📷
+              <input
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="onAvatarSelected"
+              />
+            </label>
+          </div>
+          <p class="mt-2 text-[11px] text-[#8A8072]">เลือกรูปโปรไฟล์ (ไม่บังคับ)</p>
+          <p v-if="avatarErrorMsg" class="mt-1 text-[11px] font-medium text-[#B8402A]">{{ avatarErrorMsg }}</p>
+        </div>
 
         <form @submit.prevent="handleRegister" class="space-y-4">
           <div>

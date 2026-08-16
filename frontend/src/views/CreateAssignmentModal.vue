@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue'
-import { supabase } from '../../supabase'
+import { supabase } from '../supabase'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -69,11 +69,10 @@ async function handleSubmit() {
   uploading.value = true
 
   try {
-    let attachmentPath = null
+    let attachmentUrl = null
     let attachmentName = null
 
     // อัปโหลดไฟล์แนบก่อน (ถ้ามี) แล้วค่อย insert แถวการบ้าน
-    // เก็บแค่ "path" ไว้ เพราะ bucket เป็น private ต้องขอ signed URL ใหม่ทุกครั้งที่จะเปิด
     if (file.value) {
       const fileExt = file.value.name.split('.').pop()
       const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`
@@ -84,7 +83,11 @@ async function handleSubmit() {
         .upload(filePath, file.value)
       if (uploadError) throw uploadError
 
-      attachmentPath = filePath
+      const { data: urlData } = supabase.storage
+        .from('assignment-files')
+        .getPublicUrl(filePath)
+
+      attachmentUrl = urlData.publicUrl
       attachmentName = file.value.name
     }
 
@@ -95,7 +98,7 @@ async function handleSubmit() {
         title: trimmedTitle,
         description: description.value.trim(),
         due_date: dueDate.value ? new Date(dueDate.value).toISOString() : null,
-        attachment_path: attachmentPath,
+        attachment_url: attachmentUrl,
         attachment_name: attachmentName,
       })
       .select()

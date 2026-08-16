@@ -12,11 +12,9 @@ const routes = [
   { path: '/teacher-dashboard', component: TeacherDashboard, meta: { role: 'teacher' } },
   { path: '/ai-tutor', name: 'ai-tutor', component: () => import('../views/student/AiTutor.vue') },
   { path: '/', redirect: '/login' },
-  // ต้องอยู่ก่อน '/classrooms/:id' ไม่งั้น "new" จะถูกตีความเป็นค่า :id แทน
-
   { path: '/classrooms/:id', name: 'classroom-detail', component: () => import('../views/ClassroomDetail.vue') },
-  {path: '/profile',name: 'profile',component: () => import('../views/Profile.vue') }, 
-
+  { path: '/classrooms/:id/assignments/:assignmentId', name: 'assignment-detail', component: () => import('../views/AssignmentDetail.vue') },
+  { path: '/profile', name: 'profile', component: () => import('../views/Profile.vue') },
 ]
 
 const router = createRouter({

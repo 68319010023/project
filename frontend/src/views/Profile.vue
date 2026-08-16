@@ -1,18 +1,20 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../supabase'
+import { useProfile } from '../composables/useProfile'
 
 const router = useRouter()
+const { email, name, role, avatarUrl, loaded, loadProfile, setName, setAvatarUrl } = useProfile()
 
-const loading = ref(true)
-const email = ref('')
-const name = ref('')
-const role = ref('')
+const localLoading = ref(true)
 
 const savingProfile = ref(false)
 const profileErrorMsg = ref('')
 const profileSuccessMsg = ref('')
+
+const uploadingAvatar = ref(false)
+const avatarErrorMsg = ref('')
 
 const newPassword = ref('')
 const confirmPassword = ref('')
@@ -20,36 +22,24 @@ const savingPassword = ref(false)
 const passwordErrorMsg = ref('')
 const passwordSuccessMsg = ref('')
 
-const initial = computed(() => (name.value ? name.value.trim().charAt(0) : '?'))
-const roleLabel = computed(() => (role.value === 'teacher' ? 'ครูผู้สอน' : 'นักเรียน'))
+const initial = () => (name.value ? name.value.trim().charAt(0) : '?')
+const roleLabel = () => (role.value === 'teacher' ? 'ครูผู้สอน' : 'นักเรียน')
 
-async function fetchProfile() {
-  loading.value = true
+async function init() {
+  localLoading.value = true
 
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/login')
-      return
-    }
-
-    email.value = user.email
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('name, role')
-      .eq('id', user.id)
-      .single()
-    if (error) throw error
-
-    name.value = data.name || ''
-    role.value = data.role || ''
-  } catch (err) {
-    console.error(err)
-    profileErrorMsg.value = 'ไม่สามารถโหลดข้อมูลโปรไฟล์ได้'
-  } finally {
-    loading.value = false
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    router.push('/login')
+    return
   }
+
+  // ถ้ายังไม่เคยโหลด (เช่น เข้าหน้านี้เป็นหน้าแรกโดยไม่ผ่าน navbar) ให้โหลดก่อน
+  if (!loaded.value) {
+    await loadProfile()
+  }
+
+  localLoading.value = false
 }
 
 async function saveProfile() {
@@ -74,6 +64,10 @@ async function saveProfile() {
       .eq('id', user.id)
     if (error) throw error
 
+    // ⭐ อัปเดต state กลางทันที ไม่ต้อง refresh หน้า
+    // ทุกที่ที่ใช้ useProfile() (รวมถึง Navbar ใน App.vue) จะเห็นชื่อใหม่ทันที
+    setName(trimmedName)
+
     profileSuccessMsg.value = 'บันทึกข้อมูลแล้ว'
     setTimeout(() => { profileSuccessMsg.value = '' }, 2500)
   } catch (err) {
@@ -81,6 +75,59 @@ async function saveProfile() {
     profileErrorMsg.value = 'บันทึกไม่สำเร็จ กรุณาลองใหม่'
   } finally {
     savingProfile.value = false
+  }
+}
+
+async function uploadAvatar(event) {
+  avatarErrorMsg.value = ''
+  const file = event.target.files[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    avatarErrorMsg.value = 'กรุณาเลือกไฟล์รูปภาพเท่านั้น'
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    avatarErrorMsg.value = 'ขนาดไฟล์ต้องไม่เกิน 2MB'
+    return
+  }
+
+  uploadingAvatar.value = true
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('เซสชันหมดอายุ')
+
+    const fileExt = file.name.split('.').pop()
+    const filePath = `${user.id}/avatar.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true })
+    if (uploadError) throw uploadError
+
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath)
+
+    const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', user.id)
+    if (updateError) throw updateError
+
+    // ⭐ อัปเดต state กลางทันที ไม่ต้อง refresh หน้า
+    setAvatarUrl(publicUrl)
+
+    profileSuccessMsg.value = 'อัปเดตรูปโปรไฟล์แล้ว'
+    setTimeout(() => { profileSuccessMsg.value = '' }, 2500)
+  } catch (err) {
+    console.error(err)
+    avatarErrorMsg.value = 'อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่'
+  } finally {
+    uploadingAvatar.value = false
   }
 }
 
@@ -115,125 +162,161 @@ async function changePassword() {
   }
 }
 
-onMounted(fetchProfile)
+onMounted(init)
 </script>
 
 <template>
   <div class="notebook-page min-h-dvh">
-    <main class="mx-auto max-w-xl px-4 py-8 sm:py-10">
-      <div v-if="loading" class="py-20 text-center text-[#8A8072]">กำลังโหลดข้อมูล...</div>
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:py-10">
+      <div v-if="localLoading" class="py-20 text-center text-[#8A8072]">กำลังโหลดข้อมูล...</div>
 
-      <div v-else class="space-y-6">
-        <div>
+      <div v-else>
+        <div class="mb-6">
           <h1 class="title-font text-2xl font-bold text-[#2A2521]">โปรไฟล์ของฉัน</h1>
           <p class="mt-1.5 text-[#8A8072]">แก้ไขชื่อและรหัสผ่านของบัญชีคุณ</p>
         </div>
 
-        <!-- ID card -->
-        <div class="note-card flex items-center gap-4 px-6 py-5">
-          <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#FF6B4A] text-xl font-semibold text-white">
-            {{ initial }}
-          </div>
-          <div class="min-w-0">
-            <p class="title-font truncate text-lg font-semibold text-[#2A2521]">{{ name || 'ไม่ระบุชื่อ' }}</p>
-            <span class="mt-1 inline-block rounded-full bg-[#7C9473]/10 px-2.5 py-0.5 text-xs font-medium text-[#5C7355]">
-              {{ roleLabel }}
+        <!-- Layout 2 คอลัมน์: ซ้าย = สรุปโปรไฟล์ (sticky) / ขวา = ฟอร์มต่างๆ -->
+        <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
+
+          <!-- คอลัมน์ซ้าย: การ์ดสรุปโปรไฟล์ -->
+          <div class="note-card lg:sticky lg:top-8 flex flex-col items-center px-6 py-8 text-center">
+            <div class="relative">
+              <img
+                v-if="avatarUrl"
+                :src="avatarUrl"
+                alt="avatar"
+                class="h-24 w-24 rounded-full object-cover border-2 border-[#E4DCC8]"
+              />
+              <div
+                v-else
+                class="flex h-24 w-24 items-center justify-center rounded-full bg-[#FF6B4A] text-3xl font-semibold text-white"
+              >
+                {{ initial() }}
+              </div>
+
+              <label
+                class="absolute -bottom-1 -right-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-white border-2 border-[#E4DCC8] text-sm shadow-sm hover:bg-[#F1EADC]"
+              >
+                📷
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  :disabled="uploadingAvatar"
+                  @change="uploadAvatar"
+                />
+              </label>
+            </div>
+
+            <p class="title-font mt-4 truncate text-lg font-semibold text-[#2A2521]">{{ name || 'ไม่ระบุชื่อ' }}</p>
+            <span class="mt-1.5 inline-block rounded-full bg-[#7C9473]/10 px-2.5 py-0.5 text-xs font-medium text-[#5C7355]">
+              {{ roleLabel() }}
             </span>
+            <p class="mt-3 truncate text-xs text-[#B0A692]">{{ email }}</p>
+
+            <p v-if="uploadingAvatar" class="mt-3 text-xs text-[#8A8072]">กำลังอัปโหลด...</p>
+            <p v-if="avatarErrorMsg" class="mt-3 text-xs text-[#B8402A]">{{ avatarErrorMsg }}</p>
+          </div>
+
+          <!-- คอลัมน์ขวา: ฟอร์มข้อมูลส่วนตัว + เปลี่ยนรหัสผ่าน วางเคียงกัน -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <!-- ข้อมูลส่วนตัว -->
+            <section class="note-card p-6">
+              <h2 class="title-font mb-4 font-semibold text-[#2A2521]">ข้อมูลส่วนตัว</h2>
+
+              <form @submit.prevent="saveProfile" class="space-y-4">
+                <div>
+                  <label for="email" class="mb-1.5 block text-xs font-medium text-[#6B6255]">อีเมล</label>
+                  <input
+                    id="email"
+                    :value="email"
+                    type="email"
+                    disabled
+                    class="w-full cursor-not-allowed rounded-xl border-2 border-[#E4DCC8] bg-[#F1EADC] px-3.5 py-2.5 text-sm text-[#8A8072]"
+                  />
+                </div>
+
+                <div>
+                  <label for="name" class="mb-1.5 block text-xs font-medium text-[#6B6255]">ชื่อ-นามสกุล</label>
+                  <input
+                    id="name"
+                    v-model="name"
+                    type="text"
+                    placeholder="เช่น สมชาย ใจดี"
+                    class="w-full rounded-xl border-2 border-[#E4DCC8] bg-[#FFFDF8] px-3.5 py-2.5 text-sm text-[#2A2521] placeholder-[#B0A692] transition focus:border-[#FF6B4A] focus:outline-none"
+                    :disabled="savingProfile"
+                  />
+                </div>
+
+                <p v-if="profileErrorMsg" class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-3.5 py-2 text-[13px] font-medium text-[#B8402A]">
+                  {{ profileErrorMsg }}
+                </p>
+                <p v-if="profileSuccessMsg" class="rounded-xl border border-[#7C9473]/40 bg-[#7C9473]/10 px-3.5 py-2 text-[13px] font-medium text-[#4E5F49]">
+                  {{ profileSuccessMsg }}
+                </p>
+
+                <button
+                  type="submit"
+                  :disabled="savingProfile"
+                  class="stamp-btn w-full rounded-full bg-[#FF6B4A] px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-[#E4DCC8] disabled:text-[#B0A692] disabled:shadow-none"
+                >
+                  {{ savingProfile ? 'กำลังบันทึก...' : 'บันทึกข้อมูล' }}
+                </button>
+              </form>
+            </section>
+
+            <!-- เปลี่ยนรหัสผ่าน -->
+            <section class="note-card p-6">
+              <h2 class="title-font mb-4 font-semibold text-[#2A2521]">เปลี่ยนรหัสผ่าน</h2>
+
+              <form @submit.prevent="changePassword" class="space-y-4">
+                <div>
+                  <label for="new-password" class="mb-1.5 block text-xs font-medium text-[#6B6255]">รหัสผ่านใหม่</label>
+                  <input
+                    id="new-password"
+                    v-model="newPassword"
+                    type="password"
+                    minlength="6"
+                    placeholder="อย่างน้อย 6 ตัวอักษร"
+                    class="w-full rounded-xl border-2 border-[#E4DCC8] bg-[#FFFDF8] px-3.5 py-2.5 text-sm text-[#2A2521] placeholder-[#B0A692] transition focus:border-[#FF6B4A] focus:outline-none"
+                    :disabled="savingPassword"
+                  />
+                </div>
+
+                <div>
+                  <label for="confirm-password" class="mb-1.5 block text-xs font-medium text-[#6B6255]">ยืนยันรหัสผ่านใหม่</label>
+                  <input
+                    id="confirm-password"
+                    v-model="confirmPassword"
+                    type="password"
+                    minlength="6"
+                    placeholder="พิมพ์รหัสผ่านอีกครั้ง"
+                    class="w-full rounded-xl border-2 border-[#E4DCC8] bg-[#FFFDF8] px-3.5 py-2.5 text-sm text-[#2A2521] placeholder-[#B0A692] transition focus:border-[#FF6B4A] focus:outline-none"
+                    :disabled="savingPassword"
+                  />
+                </div>
+
+                <p v-if="passwordErrorMsg" class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-3.5 py-2 text-[13px] font-medium text-[#B8402A]">
+                  {{ passwordErrorMsg }}
+                </p>
+                <p v-if="passwordSuccessMsg" class="rounded-xl border border-[#7C9473]/40 bg-[#7C9473]/10 px-3.5 py-2 text-[13px] font-medium text-[#4E5F49]">
+                  {{ passwordSuccessMsg }}
+                </p>
+
+                <button
+                  type="submit"
+                  :disabled="savingPassword"
+                  class="stamp-btn w-full rounded-full bg-[#FF6B4A] px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-[#E4DCC8] disabled:text-[#B0A692] disabled:shadow-none"
+                >
+                  {{ savingPassword ? 'กำลังเปลี่ยน...' : 'เปลี่ยนรหัสผ่าน' }}
+                </button>
+              </form>
+            </section>
+
           </div>
         </div>
-
-        <!-- ข้อมูลส่วนตัว -->
-        <section class="note-card p-6">
-          <h2 class="title-font mb-4 font-semibold text-[#2A2521]">ข้อมูลส่วนตัว</h2>
-
-          <form @submit.prevent="saveProfile" class="space-y-4">
-            <div>
-              <label for="email" class="mb-1.5 block text-xs font-medium text-[#6B6255]">อีเมล</label>
-              <input
-                id="email"
-                :value="email"
-                type="email"
-                disabled
-                class="w-full cursor-not-allowed rounded-xl border-2 border-[#E4DCC8] bg-[#F1EADC] px-3.5 py-2.5 text-sm text-[#8A8072]"
-              />
-            </div>
-
-            <div>
-              <label for="name" class="mb-1.5 block text-xs font-medium text-[#6B6255]">ชื่อ-นามสกุล</label>
-              <input
-                id="name"
-                v-model="name"
-                type="text"
-                placeholder="เช่น สมชาย ใจดี"
-                class="w-full rounded-xl border-2 border-[#E4DCC8] bg-[#FFFDF8] px-3.5 py-2.5 text-sm text-[#2A2521] placeholder-[#B0A692] transition focus:border-[#FF6B4A] focus:outline-none"
-                :disabled="savingProfile"
-              />
-            </div>
-
-            <p v-if="profileErrorMsg" class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-3.5 py-2 text-[13px] font-medium text-[#B8402A]">
-              {{ profileErrorMsg }}
-            </p>
-            <p v-if="profileSuccessMsg" class="rounded-xl border border-[#7C9473]/40 bg-[#7C9473]/10 px-3.5 py-2 text-[13px] font-medium text-[#4E5F49]">
-              {{ profileSuccessMsg }}
-            </p>
-
-            <button
-              type="submit"
-              :disabled="savingProfile"
-              class="stamp-btn rounded-full bg-[#FF6B4A] px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-[#E4DCC8] disabled:text-[#B0A692] disabled:shadow-none"
-            >
-              {{ savingProfile ? 'กำลังบันทึก...' : 'บันทึกข้อมูล' }}
-            </button>
-          </form>
-        </section>
-
-        <!-- เปลี่ยนรหัสผ่าน -->
-        <section class="note-card p-6">
-          <h2 class="title-font mb-4 font-semibold text-[#2A2521]">เปลี่ยนรหัสผ่าน</h2>
-
-          <form @submit.prevent="changePassword" class="space-y-4">
-            <div>
-              <label for="new-password" class="mb-1.5 block text-xs font-medium text-[#6B6255]">รหัสผ่านใหม่</label>
-              <input
-                id="new-password"
-                v-model="newPassword"
-                type="password"
-                minlength="6"
-                placeholder="อย่างน้อย 6 ตัวอักษร"
-                class="w-full rounded-xl border-2 border-[#E4DCC8] bg-[#FFFDF8] px-3.5 py-2.5 text-sm text-[#2A2521] placeholder-[#B0A692] transition focus:border-[#FF6B4A] focus:outline-none"
-                :disabled="savingPassword"
-              />
-            </div>
-
-            <div>
-              <label for="confirm-password" class="mb-1.5 block text-xs font-medium text-[#6B6255]">ยืนยันรหัสผ่านใหม่</label>
-              <input
-                id="confirm-password"
-                v-model="confirmPassword"
-                type="password"
-                minlength="6"
-                placeholder="พิมพ์รหัสผ่านอีกครั้ง"
-                class="w-full rounded-xl border-2 border-[#E4DCC8] bg-[#FFFDF8] px-3.5 py-2.5 text-sm text-[#2A2521] placeholder-[#B0A692] transition focus:border-[#FF6B4A] focus:outline-none"
-                :disabled="savingPassword"
-              />
-            </div>
-
-            <p v-if="passwordErrorMsg" class="rounded-xl border border-[#E85539]/30 bg-[#E85539]/10 px-3.5 py-2 text-[13px] font-medium text-[#B8402A]">
-              {{ passwordErrorMsg }}
-            </p>
-            <p v-if="passwordSuccessMsg" class="rounded-xl border border-[#7C9473]/40 bg-[#7C9473]/10 px-3.5 py-2 text-[13px] font-medium text-[#4E5F49]">
-              {{ passwordSuccessMsg }}
-            </p>
-
-            <button
-              type="submit"
-              :disabled="savingPassword"
-              class="stamp-btn rounded-full bg-[#FF6B4A] px-5 py-2.5 text-sm font-semibold text-white transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-[#E4DCC8] disabled:text-[#B0A692] disabled:shadow-none"
-            >
-              {{ savingPassword ? 'กำลังเปลี่ยน...' : 'เปลี่ยนรหัสผ่าน' }}
-            </button>
-          </form>
-        </section>
       </div>
     </main>
   </div>
