@@ -1,63 +1,76 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { supabase } from '../supabase'
-import Login from '../views/Login.vue'
-import Register from '../views/Register.vue'
-import StudentDashboard from '../views/student/StudentDashboard.vue'
-import TeacherDashboard from '../views/teacher/TeacherDashboard.vue'
-
-const routes = [
-  { path: '/login', name: 'login', component: Login, meta: { public: true } },
-  { path: '/register', name: 'register', component: Register, meta: { public: true } },
-  { path: '/student-dashboard', component: StudentDashboard, meta: { role: 'student' } },
-  { path: '/teacher-dashboard', component: TeacherDashboard, meta: { role: 'teacher' } },
-  { path: '/ai-tutor', name: 'ai-tutor', component: () => import('../views/student/AiTutor.vue') },
-  { path: '/', redirect: '/login' },
-  { path: '/classrooms/:id', name: 'classroom-detail', component: () => import('../views/ClassroomDetail.vue') },
-  { path: '/classrooms/:id/assignments/:assignmentId', name: 'assignment-detail', component: () => import('../views/AssignmentDetail.vue') },
-  { path: '/profile', name: 'profile', component: () => import('../views/Profile.vue') },
-]
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../composables/useAuth'
 
 const router = createRouter({
-  history: createWebHistory(),
-  routes,
+    history: createWebHistory(),
+    scrollBehavior(_to, _from, savedPosition) {
+        return savedPosition || { top: 0 }
+    },
+    routes: [
+        {
+            path: '/',
+            name: 'landing',
+            component: () => import('../views/LandingView.vue'),
+        },
+        {
+            path: '/login',
+            name: 'login',
+            component: () => import('../views/LoginView.vue'),
+            meta: { guestOnly: true }
+        },
+        {
+            path: '/register',
+            name: 'register',
+            component: () => import('../views/RegisterView.vue'),
+            meta: { guestOnly: true }
+        },
+        // placeholder ไว้ก่อน สร้างหน้าจริงทีหลัง
+        {
+            path: '/student',
+            name: 'student-home',
+            component: () => import('../views/LandingView.vue'),
+            meta: { requiresAuth: true, role: 'student' }
+        },
+        {
+            path: '/teacher',
+            name: 'teacher-home',
+            component: () => import('../views/LandingView.vue'),
+            meta: { requiresAuth: true, role: 'teacher' }
+        },
+    ],
 })
 
-
-
 router.beforeEach(async (to) => {
-  // ใช้ getSession() ไม่ใช่ getUser() ตอนเช็คตอน guard
-  // เพราะ getSession() อ่านจาก local storage ตรงๆ ไม่ต้องรอ network round-trip ไป verify กับ server
-  const { data: { session } } = await supabase.auth.getSession()
-  const isLoggedIn = !!session
+    const { data: { session } } = await supabase.auth.getSession()
+    const isLoggedIn = !!session
 
-  if (!to.meta.public && !isLoggedIn) {
-    // หน้านี้ต้อง login แต่ยังไม่ login -> เด้งไป login
-    return '/login'
-  }
-
-  if (to.meta.public && isLoggedIn) {
-    // login อยู่แล้วแต่ดันเข้าหน้า login/register -> เด้งไป dashboard ตาม role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
-    return profile?.role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard'
-  }
-
-  if (to.meta.role && isLoggedIn) {
-    // เข้าถูกทาง แต่เช็ค role ให้ตรงห้อง (กันนักเรียนเข้า teacher-dashboard)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
-    if (profile?.role !== to.meta.role) {
-      return profile?.role === 'teacher' ? '/teacher-dashboard' : '/student-dashboard'
+    // หน้าที่ต้องล็อกอินก่อน
+    if (to.meta.requiresAuth && !isLoggedIn) {
+        return { name: 'login' }
     }
-  }
 
-  // ไม่ return อะไร = อนุญาตให้ไปต่อ (เทียบเท่า next() เดิม)
+    // หน้า login/register ไม่ควรเข้าได้ถ้าล็อกอินอยู่แล้ว
+    if (to.meta.guestOnly && isLoggedIn) {
+        return { name: 'landing' }
+    }
+
+    // เช็ค role เฉพาะหน้าที่ระบุ role ไว้
+ if (to.meta.requiresAuth && to.meta.role && isLoggedIn) {
+    const { fetchProfile } = useAuth()
+
+    const profile = await fetchProfile(session.user.id)
+
+    if (!profile) {
+        console.log('ไม่พบ profile')
+        return { name: 'landing' }
+    }
+
+    if (profile.role !== to.meta.role) {
+        console.log('role ไม่ตรง:', profile.role)
+        return { name: 'landing' }
+    }
+}
 })
 
 export default router
