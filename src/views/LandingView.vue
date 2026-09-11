@@ -2,11 +2,12 @@
 
 import { ref, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
-
+const mobileMenuOpen = ref(false)
 const studentCount = ref(null)
 const teacherCount = ref(null)
 const totalCount = ref(null)
 const timeline = ref([
+
     {
         date: 'ส.ค. 2568',
         title: 'เริ่มต้นโครงงาน',
@@ -29,23 +30,17 @@ const timeline = ref([
     }
 ])
 onMounted(async () => {
-    const { count: students } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'student')
+    const { data, error } = await supabase.rpc('get_user_stats')
 
-    const { count: teachers } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'teacher')
+    if (error) {
+        console.error('get_user_stats error:', error)
+        return
+    }
 
-    const { count: total } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
-
-    studentCount.value = students ?? 0
-    teacherCount.value = teachers ?? 0
-    totalCount.value = total ?? 0
+    const stats = data?.[0]
+    studentCount.value = stats?.student_count ?? 0
+    teacherCount.value = stats?.teacher_count ?? 0
+    totalCount.value = stats?.total_count ?? 0
 })
 </script>
 
@@ -53,35 +48,67 @@ onMounted(async () => {
     <div class="bg-white text-dark font-mitr">
 
         <!-- ========== 1. NAVBAR ========== -->
-        <div class="sticky top-0 z-30 bg-dark border-b-4 border-purple h-[90px] flex items-center gap-4 px-6  relative">
-            <div class="flex items-center gap-3">
-                <img src="/img/logo.png" class="w-20 h-20 hover:scale-110 transition-transform duration-200  object-cover " alt="โลโก้">
-                <div class="flex flex-col leading-tight">
-                    <span class="font-mali font-bold text-lg text-white whitespace-nowrap">ห้องเรียนของฉัน</span>
-                    <span class="font-mitr text-xs text-gray-400 whitespace-nowrap">by บารมี</span>
+        <div class="sticky top-0 z-30" style="overflow-anchor: none;">
+            <div
+                class="bg-dark border-b-4 border-purple h-[70px] md:h-[90px] flex items-center gap-2 md:gap-4 px-4 md:px-6 relative">
+                <div class="flex items-center gap-2 md:gap-3">
+                    <img src="/img/logo.png"
+                        class="w-12 h-12 md:w-20 md:h-20 hover:scale-110 transition-transform duration-200 object-cover"
+                        alt="โลโก้">
+                    <div class="flex flex-col leading-tight">
+                        <span
+                            class="font-mali font-bold text-xs xs:text-sm md:text-lg text-white whitespace-nowrap">ห้องเรียนของฉัน</span>
+                        <span class="hidden sm:block font-mitr text-xs text-gray-400 whitespace-nowrap">by บารมี</span>
+                    </div>
                 </div>
-            </div>
-            <div class="hidden md:flex gap-1 absolute left-1/2 -translate-x-1/2">
-                <a href="#problem"
-                    class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">ปัญหา</a>
-                <a href="#history"
-                    class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">ความเป็นมา</a>
-                <a href="#advisor"
-                    class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">ที่ปรึกษา</a>
-                <a href="#research"
-                    class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">งานวิจัย</a>
-            </div>
+                <div class="hidden md:flex gap-1 absolute left-1/2 -translate-x-1/2">
+                    <a href="#problem"
+                        class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">ปัญหา</a>
+                    <a href="#history"
+                        class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">ความเป็นมา</a>
+                    <a href="#advisor"
+                        class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">ที่ปรึกษา</a>
+                    <a href="#research"
+                        class="nav-link-bounce px-3.5 py-2 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white transition-colors">งานวิจัย</a>
+                </div>
 
-            <div class="flex-1"></div>
+                <div class="flex-1"></div>
 
-            <div class="flex gap-2">
-                <router-link to="/login"
-                    class="px-[18px] py-2 rounded-lg border-2 border-gray-500 text-white text-[13.5px] font-semibold whitespace-nowrap hover:border-white">เข้าสู่ระบบ</router-link>
-                <router-link to="/register"
-                    class="px-[18px] py-2 rounded-lg border-2 border-dark bg-orange text-dark text-[13.5px] font-semibold whitespace-nowrap hover:bg-white ">สมัครสมาชิก</router-link>
+                <div class="hidden md:flex gap-2">
+                    <router-link to="/login"
+                        class="px-[18px] py-2 rounded-lg border-2 border-gray-500 text-white text-[13.5px] font-semibold whitespace-nowrap hover:border-white">เข้าสู่ระบบ</router-link>
+                    <router-link to="/register"
+                        class="px-[18px] py-2 rounded-lg border-2 border-dark bg-orange text-dark text-[13.5px] font-semibold whitespace-nowrap hover:bg-white">สมัครสมาชิก</router-link>
+                </div>
+
+                <!-- Hamburger: โชว์เฉพาะ mobile -->
+                <button @click="mobileMenuOpen = !mobileMenuOpen"
+                    class="md:hidden ml-1 w-9 h-9 flex items-center justify-center rounded-lg border-2 border-gray-500 text-white shrink-0">
+                    <span v-if="!mobileMenuOpen">☰</span>
+                    <span v-else>✕</span>
+                </button>
             </div>
+            <Transition name="slide-down">
+                <div v-if="mobileMenuOpen"
+                    class="absolute top-[70px] left-0 right-0 md:hidden bg-dark border-b-4 border-purple px-4 py-3 flex flex-col gap-1 z-40">
+                    <a href="#problem" @click="mobileMenuOpen = false"
+                        class="px-3.5 py-2.5 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white">ปัญหา</a>
+                    <a href="#history" @click="mobileMenuOpen = false"
+                        class="px-3.5 py-2.5 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white">ความเป็นมา</a>
+                    <a href="#advisor" @click="mobileMenuOpen = false"
+                        class="px-3.5 py-2.5 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white">ที่ปรึกษา</a>
+                    <a href="#research" @click="mobileMenuOpen = false"
+                        class="px-3.5 py-2.5 rounded-lg text-base text-gray-300 hover:bg-white/10 hover:text-white">งานวิจัย</a>
+
+                    <div class="sm:hidden flex gap-2 mt-2 pt-2 border-t border-gray-700">
+                        <router-link to="/login" @click="mobileMenuOpen = false"
+                            class="flex-1 text-center px-3 py-2 rounded-lg border-2 border-gray-500 text-white text-[13px] font-semibold">เข้าสู่ระบบ</router-link>
+                        <router-link to="/register" @click="mobileMenuOpen = false"
+                            class="flex-1 text-center px-3 py-2 rounded-lg border-2 border-dark bg-orange text-dark text-[13px] font-semibold">สมัครสมาชิก</router-link>
+                    </div>
+                </div>
+            </Transition>
         </div>
-
         <!-- ========== 2. HERO (เล็ก) ========== -->
         <section v-reveal class="max-w-[1100px] mx-auto px-6 pt-14 pb-10 text-center">
             <span
@@ -104,36 +131,47 @@ onMounted(async () => {
 
 
         <!-- ========== 3. STATS BAR ========== -->
-        <section v-reveal class="max-w-[1100px] mx-auto px-6 pb-14">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <section v-reveal class="max-w-[1100px] mx-auto px-4 sm:px-6 pb-14">
+            <div class="grid grid-cols-3 gap-2 sm:gap-4">
 
-                <div class="bg-white border-3 border-dark rounded-[14px] px-4 py-5 text-center shadow-offset-sm">
-                    <div class="font-mali font-bold text-3xl text-purple">
+                <div
+                    class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
+                    <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
                         {{ studentCount === null ? '...' : studentCount }}
                     </div>
-                    <div class="text-[12.5px] text-gray mt-1.5">นักศึกษาเข้าใช้งานทั้งหมด</div>
+                    <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
+                        <span class="sm:hidden">นักศึกษา</span>
+                        <span class="hidden sm:inline">นักศึกษาเข้าใช้งานทั้งหมด</span>
+                    </div>
                 </div>
 
-                <div class="bg-white border-3 border-dark rounded-[14px] px-4 py-5 text-center shadow-offset-sm">
-                    <div class="font-mali font-bold text-3xl text-purple">
+                <div
+                    class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
+                    <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
                         {{ teacherCount === null ? '...' : teacherCount }}
                     </div>
-                    <div class="text-[12.5px] text-gray mt-1.5">ครูที่เข้าใช้งานทั้งหมด</div>
+                    <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
+                        <span class="sm:hidden">ครู</span>
+                        <span class="hidden sm:inline">ครูที่เข้าใช้งานทั้งหมด</span>
+                    </div>
                 </div>
 
-                <div class="bg-white border-3 border-dark rounded-[14px] px-4 py-5 text-center shadow-offset-sm">
-                    <div class="font-mali font-bold text-3xl text-purple">
+                <div
+                    class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
+                    <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
                         {{ totalCount === null ? '...' : totalCount }}
                     </div>
-                    <div class="text-[12.5px] text-gray mt-1.5">ผู้ใช้งานรวมทั้งหมด</div>
+                    <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
+                        <span class="sm:hidden">ผู้ใช้งานรวม</span>
+                        <span class="hidden sm:inline">ผู้ใช้งานรวมทั้งหมด</span>
+                    </div>
                 </div>
 
             </div>
         </section>
 
         <!-- ========== 4. ปัญหา ========== -->
-        <section id="problem" v-reveal
-            class="scroll-mt-[88px]  max-w-[1100px] mx-6 xl:mx-auto px-6 py-16">
+        <section id="problem" v-reveal class="scroll-mt-[88px]  max-w-[1100px] mx-6 xl:mx-auto px-6 py-16">
             <div class="text-center max-w-[640px] mx-auto mb-10">
                 <div class="font-mono text-[11px] font-bold text-purple tracking-widest uppercase">ที่มาของปัญหา</div>
                 <h2 class="text-2xl mt-2">ทำไมถึงต้องมีระบบนี้</h2>

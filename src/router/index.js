@@ -4,9 +4,13 @@ import { useAuth } from '../composables/useAuth'
 
 const router = createRouter({
     history: createWebHistory(),
-    scrollBehavior(_to, _from, savedPosition) {
-        return savedPosition || { top: 0 }
-    },
+   scrollBehavior(_to, from, savedPosition) {
+
+    if (from.matched.length === 0) {
+        return { top: 0 }
+    }
+    return savedPosition || { top: 0 }
+},
     routes: [
         {
             path: '/',
