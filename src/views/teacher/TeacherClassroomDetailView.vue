@@ -1,0 +1,133 @@
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useClassroomDetail } from '../../composables/useClassroomDetail'
+import CreateAssignmentModal from '../../components/teacher/CreateAssignmentModal.vue'
+
+const props = defineProps({
+  classroomId: { type: String, required: true },
+})
+
+const {
+  classroom, loading,
+  members, membersLoading,
+  assignments, assignmentsLoading,
+  submissions, submissionsLoading,
+  loadAll, loadAssignments, loadSubmissions,
+  formatDate,
+} = useClassroomDetail(props.classroomId)
+
+const showCreateModal = ref(false)
+const expandedAssignmentId = ref(null)
+
+function submissionsFor(assignmentId) {
+  return submissions.value.filter((s) => s.assignment_id === assignmentId)
+}
+
+function toggleExpand(assignmentId) {
+  expandedAssignmentId.value = expandedAssignmentId.value === assignmentId ? null : assignmentId
+}
+
+async function handleCreated() {
+  await loadAssignments()
+  await loadSubmissions()
+}
+
+onMounted(loadAll)
+</script>
+
+<template>
+  <div class="p-8">
+    <div v-if="loading">กำลังโหลด...</div>
+    <div v-else-if="!classroom">ไม่พบห้องเรียนนี้</div>
+    <div v-else>
+      <h1 class="font-mali text-2xl font-bold">{{ classroom.name }}</h1>
+      <p class="text-gray mt-1">รหัสห้อง: {{ classroom.class_code }}</p>
+
+      <section class="mt-8">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-mali text-xl font-bold">สมาชิกในห้อง</h2>
+          <span class="text-sm text-gray">{{ members.length }} คน</span>
+        </div>
+
+        <div v-if="membersLoading">กำลังโหลดรายชื่อสมาชิก...</div>
+        <div v-else-if="members.length === 0" class="text-gray">
+          ยังไม่มีสมาชิกในห้องนี้
+        </div>
+        <ul v-else class="space-y-2">
+          <li
+            v-for="member in members"
+            :key="member.student_id"
+            class="border-2 border-black rounded-lg px-4 py-2"
+          >
+            {{ member.profiles?.name }} {{ member.profiles?.lastname }}
+          </li>
+        </ul>
+      </section>
+
+      <section class="mt-8">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-mali text-xl font-bold">การบ้าน</h2>
+          <button
+            @click="showCreateModal = true"
+            class="border-2 border-black rounded-lg px-4 py-1 font-bold"
+          >
+            + สร้างการบ้าน
+          </button>
+        </div>
+
+        <div v-if="assignmentsLoading || submissionsLoading">กำลังโหลดการบ้าน...</div>
+        <div v-else-if="assignments.length === 0" class="text-gray">
+          ยังไม่มีการบ้านในห้องนี้
+        </div>
+        <ul v-else class="space-y-3">
+          <li
+            v-for="assignment in assignments"
+            :key="assignment.id"
+            class="border-2 border-black rounded-lg p-4"
+          >
+            <div
+              class="flex items-center justify-between cursor-pointer"
+              @click="toggleExpand(assignment.id)"
+            >
+              <div>
+                <p class="font-bold">{{ assignment.title }}</p>
+                <p v-if="assignment.description" class="text-sm text-gray mt-1">
+                  {{ assignment.description }}
+                </p>
+                <p class="text-sm text-gray mt-1">
+                  กำหนดส่ง: {{ formatDate(assignment.due_date) }}
+                </p>
+              </div>
+              <span class="text-sm font-bold whitespace-nowrap ml-4">
+                ส่งแล้ว {{ submissionsFor(assignment.id).length }}/{{ members.length }}
+              </span>
+            </div>
+
+            <div v-if="expandedAssignmentId === assignment.id" class="mt-3 pt-3 border-t border-black">
+              <p v-if="submissionsFor(assignment.id).length === 0" class="text-sm text-gray">
+                ยังไม่มีใครส่งการบ้านชิ้นนี้
+              </p>
+              <ul v-else class="space-y-1">
+                <li
+                  v-for="sub in submissionsFor(assignment.id)"
+                  :key="sub.id"
+                  class="text-sm flex justify-between"
+                >
+                  <span>{{ sub.profiles?.name }} {{ sub.profiles?.lastname }}</span>
+                  <span class="text-gray">{{ formatDate(sub.submitted_at) }}</span>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </div>
+
+    <CreateAssignmentModal
+      v-if="showCreateModal"
+      :classroom-id="classroomId"
+      @close="showCreateModal = false"
+      @created="handleCreated"
+    />
+  </div>
+</template>

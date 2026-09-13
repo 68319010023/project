@@ -40,6 +40,7 @@ async function loadTeacherClassrooms() {
         if (pendingRequests > 0) badges.push({ label: `คำขอเข้าร่วม ${pendingRequests}`, type: 'alert' })
 
         return {
+            id: room.id,
             name: room.name,
             code: room.class_code,
             subLabel: `รหัสห้อง: ${room.class_code}`,
@@ -86,6 +87,7 @@ async function loadStudentClassrooms() {
         const teacherName = room.profiles ? `ครู${room.profiles.name} ${room.profiles.lastname}` : ''
 
         return {
+            id: room.id,
             name: room.name,
             code: room.class_code,
             subLabel: teacherName,
@@ -113,10 +115,11 @@ watch(() => profile.value?.id, async (id) => {
 
 <template>
     <div class="grid gap-7" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
-        <ClassroomCard v-for="room in classrooms" :key="room.code" v-bind="room" />
+        <router-link v-for="room in classrooms" :key="room.code" :to="`/classroom/${room.id}`">
+            <ClassroomCard v-bind="room" />
+        </router-link>
 
-        <button type="button"
-            @click="emit(profile?.role === 'teacher' ? 'open-create' : 'open-join')"
+        <button type="button" @click="emit(profile?.role === 'teacher' ? 'open-create' : 'open-join')"
             class="border-3 border-dashed border-dark rounded-2xl min-h-[180px] flex flex-col items-center justify-center gap-2 text-gray hover:bg-purple-light transition">
             <span class="text-3xl">➕</span>
             <span class="text-[14px] font-semibold">
@@ -126,6 +129,7 @@ watch(() => profile.value?.id, async (id) => {
     </div>
 
     <p v-if="!loading && classrooms.length === 0" class="text-center text-gray text-[14px] mt-8">
-        ยังไม่มีห้องเรียน {{ profile?.role === 'teacher' ? 'ลองสร้างห้องแรกของคุณเลย!' : 'ลองเข้าร่วมด้วยรหัสจากครูผู้สอน' }}
+        ยังไม่มีห้องเรียน {{ profile?.role === 'teacher' ? 'ลองสร้างห้องแรกของคุณเลย!' :
+        'ลองเข้าร่วมด้วยรหัสจากครูผู้สอน' }}
     </p>
 </template>

@@ -42,6 +42,12 @@ const router = createRouter({
             component: () => import('../views/DashboardView.vue'),
             meta: { requiresAuth: true, role: 'teacher' }
         },
+        {
+    path: '/classroom/:id',
+    name: 'classroom-detail',
+    component: () => import('../views/ClassroomDetailView.vue'),
+    meta: { requiresAuth: true },
+},
     ],
 })
 
@@ -62,6 +68,16 @@ router.beforeEach(async (to) => {
     if (to.meta.guestOnly && isLoggedIn) {
         return { name: 'landing' }
     }
+
+    if (to.name === 'landing' && isLoggedIn) {
+    let currentProfile = profile.value
+    if (!currentProfile || currentProfile.id !== user.value.id) {
+        currentProfile = await fetchProfile(user.value.id)
+    }
+    if (currentProfile) {
+        return { name: currentProfile.role === 'teacher' ? 'teacher-home' : 'student-home' }
+    }
+}
 
     if (to.meta.requiresAuth && to.meta.role && isLoggedIn) {
         let currentProfile = profile.value
