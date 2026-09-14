@@ -31,6 +31,18 @@ export function useClassroomDetail(classroomId) {
     loading.value = false
   }
 
+  async function getSubmissionUrl(filePath) {
+    const { data, error } = await supabase.storage
+      .from('submission-files')
+      .createSignedUrl(filePath, 60 * 5) 
+
+    if (error) {
+      console.error('getSubmissionUrl error:', error)
+      return null
+    }
+    return data.signedUrl
+  }
+
   async function loadMembers() {
     membersLoading.value = true
     const { data, error } = await supabase
@@ -77,7 +89,7 @@ export function useClassroomDetail(classroomId) {
 
     const { data, error } = await supabase
       .from('assignment_submissions')
-      .select('id, assignment_id, student_id, original_filename, submitted_at, profiles:student_id(name, lastname)')
+      .select('id, assignment_id, student_id, file_url, original_filename, submitted_at, profiles:student_id(name, lastname)')
       .in('assignment_id', assignmentIds)
 
     if (error) {
@@ -115,6 +127,7 @@ export function useClassroomDetail(classroomId) {
     loadAll,
     loadAssignments,
     loadSubmissions,
+    getSubmissionUrl,
     formatDate,
   }
 }

@@ -1,8 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useClassroomDetail } from '../../composables/useClassroomDetail'
-import { useAuth } from '../../composables/useAuth'
-import SubmitAssignmentModal from '../../components/student/SubmitAssignmentModal.vue'
+import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
+import { useAuth } from '../../composables/useAuth.js'
+import SubmitModal from '../../components/student/SubmitModal.vue'
 
 const props = defineProps({
   classroomId: { type: String, required: true },
@@ -98,7 +98,7 @@ onMounted(loadAll)
       </section>
     </div>
 
-    <SubmitAssignmentModal
+    <SubmitModal
       v-if="submittingAssignmentId"
       :assignment-id="submittingAssignmentId"
       @close="submittingAssignmentId = null"

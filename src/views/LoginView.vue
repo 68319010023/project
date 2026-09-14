@@ -42,26 +42,15 @@ async function handleLogin() {
             password: password.value
         })
 
-        console.log("LOGIN DATA:", data)
-        console.log("LOGIN ERROR:", error)
-
         if (error) throw error
-
 
         const profile = await fetchProfile(data.user.id)
 
-        console.log("USER ID:", data.user.id)
-        console.log("PROFILE DATA:", profile)
-
-
         if (profile?.role === 'teacher') {
-            console.log("GO TEACHER")
             router.push('/teacher')
         } else {
-            console.log("GO STUDENT")
             router.push('/student')
         }
-
 
     } catch (err) {
         console.error("LOGIN CATCH:", err)

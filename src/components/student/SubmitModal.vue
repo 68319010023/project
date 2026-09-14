@@ -34,7 +34,9 @@ async function handleSubmit() {
   const extension = originalName.includes('.')
     ? originalName.slice(originalName.lastIndexOf('.'))
     : ''
-  const safeName = `${Date.now()}${extension}`
+
+  // ชื่อไฟล์คงที่ (ไม่ใช้ timestamp) เพื่อให้ resubmit ทับไฟล์เดิม ไม่ทิ้งขยะไว้ใน bucket
+  const safeName = `submission${extension}`
   const filePath = `${props.assignmentId}/${studentId}/${safeName}`
 
   const { error: uploadError } = await supabase.storage

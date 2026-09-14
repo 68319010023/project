@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useClassroomDetail } from '../../composables/useClassroomDetail'
-import CreateAssignmentModal from '../../components/teacher/CreateAssignmentModal.vue'
+import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
+import AssignmentModal from '../../components/teacher/AssignmentModal.vue'
 
 const props = defineProps({
   classroomId: { type: String, required: true },
@@ -13,8 +13,18 @@ const {
   assignments, assignmentsLoading,
   submissions, submissionsLoading,
   loadAll, loadAssignments, loadSubmissions,
+  getSubmissionUrl,
   formatDate,
 } = useClassroomDetail(props.classroomId)
+
+async function openSubmission(filePath) {
+  const url = await getSubmissionUrl(filePath)
+  if (url) {
+    window.open(url, '_blank')
+  } else {
+    alert('เปิดไฟล์ไม่สำเร็จ ลองใหม่อีกครั้ง')
+  }
+}
 
 const showCreateModal = ref(false)
 const expandedAssignmentId = ref(null)
@@ -54,11 +64,7 @@ onMounted(loadAll)
           ยังไม่มีสมาชิกในห้องนี้
         </div>
         <ul v-else class="space-y-2">
-          <li
-            v-for="member in members"
-            :key="member.student_id"
-            class="border-2 border-black rounded-lg px-4 py-2"
-          >
+          <li v-for="member in members" :key="member.student_id" class="border-2 border-black rounded-lg px-4 py-2">
             {{ member.profiles?.name }} {{ member.profiles?.lastname }}
           </li>
         </ul>
@@ -67,10 +73,7 @@ onMounted(loadAll)
       <section class="mt-8">
         <div class="flex items-center justify-between mb-3">
           <h2 class="font-mali text-xl font-bold">การบ้าน</h2>
-          <button
-            @click="showCreateModal = true"
-            class="border-2 border-black rounded-lg px-4 py-1 font-bold"
-          >
+          <button @click="showCreateModal = true" class="border-2 border-black rounded-lg px-4 py-1 font-bold">
             + สร้างการบ้าน
           </button>
         </div>
@@ -80,15 +83,8 @@ onMounted(loadAll)
           ยังไม่มีการบ้านในห้องนี้
         </div>
         <ul v-else class="space-y-3">
-          <li
-            v-for="assignment in assignments"
-            :key="assignment.id"
-            class="border-2 border-black rounded-lg p-4"
-          >
-            <div
-              class="flex items-center justify-between cursor-pointer"
-              @click="toggleExpand(assignment.id)"
-            >
+          <li v-for="assignment in assignments" :key="assignment.id" class="border-2 border-black rounded-lg p-4">
+            <div class="flex items-center justify-between cursor-pointer" @click="toggleExpand(assignment.id)">
               <div>
                 <p class="font-bold">{{ assignment.title }}</p>
                 <p v-if="assignment.description" class="text-sm text-gray mt-1">
@@ -108,13 +104,15 @@ onMounted(loadAll)
                 ยังไม่มีใครส่งการบ้านชิ้นนี้
               </p>
               <ul v-else class="space-y-1">
-                <li
-                  v-for="sub in submissionsFor(assignment.id)"
-                  :key="sub.id"
-                  class="text-sm flex justify-between"
-                >
+                <li v-for="sub in submissionsFor(assignment.id)" :key="sub.id"
+                  class="text-sm flex justify-between items-center">
                   <span>{{ sub.profiles?.name }} {{ sub.profiles?.lastname }}</span>
-                  <span class="text-gray">{{ formatDate(sub.submitted_at) }}</span>
+                  <div class="flex items-center gap-3">
+                    <span class="text-gray">{{ formatDate(sub.submitted_at) }}</span>
+                    <button @click="openSubmission(sub.file_url)" class="text-purple underline font-bold">
+                      เปิดไฟล์
+                    </button>
+                  </div>
                 </li>
               </ul>
             </div>
@@ -123,11 +121,7 @@ onMounted(loadAll)
       </section>
     </div>
 
-    <CreateAssignmentModal
-      v-if="showCreateModal"
-      :classroom-id="classroomId"
-      @close="showCreateModal = false"
-      @created="handleCreated"
-    />
+    <AssignmentModal v-if="showCreateModal" :classroom-id="classroomId" @close="showCreateModal = false"
+      @created="handleCreated" />
   </div>
 </template>
