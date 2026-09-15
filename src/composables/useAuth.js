@@ -53,6 +53,25 @@ async function signOut() {
     profile.value = null
 }
 
+async function updateProfile(updates) {
+    if (!user.value) return { error: 'not logged in' }
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.value.id)
+        .select()
+        .maybeSingle()
+
+    if (error) {
+        console.error('updateProfile error:', error)
+        return { error }
+    }
+
+    profile.value = data
+    return { data }
+}
+
 export function useAuth() {
-    return { user, profile, loading, initAuth, fetchProfile, signOut }
+    return { user, profile, loading, initAuth, fetchProfile, signOut, updateProfile }
 }

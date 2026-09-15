@@ -181,7 +181,7 @@ onMounted(() => {
                 ยังไม่มีการแจ้งเตือน
             </div>
             <div v-else v-for="n in notifications" :key="n.id"
-                class="w-full text-left px-4 py-3 border-b-2 border-dashed border-gray-200 flex gap-3 hover:bg-gray-300 transition cursor-pointer group"
+                class="w-full text-left px-4 py-3 border-b-2 border-dashed border-gray-200 flex gap-3 hover:bg-purple-light/60 transition cursor-pointer group"
                 :class="n.is_read ? 'bg-gray-100' : 'bg-purple-light/30'" @click="markAsRead(n)">
                 <component :is="iconFor(n.type)" :size="16" :stroke-width="2.5" class="shrink-0 mt-0.5"
                     :class="n.is_read ? 'text-gray-400' : 'text-gray'" />

@@ -4,13 +4,13 @@ import { useAuth } from '../composables/useAuth'
 
 const router = createRouter({
     history: createWebHistory(),
-   scrollBehavior(_to, from, savedPosition) {
+    scrollBehavior(_to, from, savedPosition) {
 
-    if (from.matched.length === 0) {
-        return { top: 0 }
-    }
-    return savedPosition || { top: 0 }
-},
+        if (from.matched.length === 0) {
+            return { top: 0 }
+        }
+        return savedPosition || { top: 0 }
+    },
     routes: [
         {
             path: '/',
@@ -43,11 +43,23 @@ const router = createRouter({
             meta: { requiresAuth: true, role: 'teacher' }
         },
         {
-    path: '/classroom/:id',
-    name: 'classroom-detail',
-    component: () => import('../views/ClassroomDetailView.vue'),
-    meta: { requiresAuth: true },
-},
+            path: '/classroom/:id',
+            name: 'classroom-detail',
+            component: () => import('../views/ClassroomDetailView.vue'),
+            meta: { requiresAuth: true },
+        },
+        {
+            path: '/settings',
+            name: 'settings',
+            component: () => import('../views/SettingsView.vue'),
+            meta: { requiresAuth: true },
+        },
+        {
+            path: '/profile',
+            name: 'profile',
+            component: () => import('../views/ProfileView.vue'),
+            meta: { requiresAuth: true },
+        },
     ],
 })
 
@@ -70,14 +82,14 @@ router.beforeEach(async (to) => {
     }
 
     if (to.name === 'landing' && isLoggedIn) {
-    let currentProfile = profile.value
-    if (!currentProfile || currentProfile.id !== user.value.id) {
-        currentProfile = await fetchProfile(user.value.id)
+        let currentProfile = profile.value
+        if (!currentProfile || currentProfile.id !== user.value.id) {
+            currentProfile = await fetchProfile(user.value.id)
+        }
+        if (currentProfile) {
+            return { name: currentProfile.role === 'teacher' ? 'teacher-home' : 'student-home' }
+        }
     }
-    if (currentProfile) {
-        return { name: currentProfile.role === 'teacher' ? 'teacher-home' : 'student-home' }
-    }
-}
 
     if (to.meta.requiresAuth && to.meta.role && isLoggedIn) {
         let currentProfile = profile.value
