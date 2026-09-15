@@ -7,6 +7,7 @@ const emit = defineEmits(['close', 'created'])
 const { profile } = useAuth()
 
 const name = ref('')
+const gradeLevel = ref('')
 const loading = ref(false)
 const errorMsg = ref('')
 
@@ -33,6 +34,7 @@ async function handleCreate() {
             .insert({
                 teacher_id: profile.value.id,
                 name: name.value.trim(),
+                grade_level: gradeLevel.value.trim() || null,
                 class_code: code
             })
             .select()
@@ -61,12 +63,17 @@ async function handleCreate() {
         <div class="bg-white border-3 border-dark rounded-2xl shadow-offset max-w-[420px] w-full p-7">
             <h2 class="font-mali font-bold text-xl mb-4">สร้างห้องเรียนใหม่</h2>
 
-            <p v-if="errorMsg" class="text-danger text-[13px] mb-3 bg-red-50 border-2 border-danger rounded-lg py-2 px-3">
+            <p v-if="errorMsg"
+                class="text-danger text-[13px] mb-3 bg-red-50 border-2 border-danger rounded-lg py-2 px-3">
                 {{ errorMsg }}
             </p>
 
             <label class="text-[13px] font-semibold">ชื่อห้องเรียน</label>
             <input v-model="name" type="text" placeholder="เช่น คณิตศาสตร์ ม.3/1"
+                class="w-full mt-1 px-3 py-2.5 rounded-lg border-2 border-dark text-[14px] mb-4" />
+
+            <label class="text-[13px] font-semibold">ระดับชั้น (ถ้ามี)</label>
+            <input v-model="gradeLevel" type="text" placeholder="เช่น ปวส.2/3"
                 class="w-full mt-1 px-3 py-2.5 rounded-lg border-2 border-dark text-[14px] mb-5" />
 
             <div class="flex gap-3">

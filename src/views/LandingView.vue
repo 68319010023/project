@@ -1,8 +1,10 @@
 <script setup>
 
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../lib/supabase'
+import { ArrowUp } from 'lucide-vue-next'
 const mobileMenuOpen = ref(false)
+const showScrollTop = ref(false)
 const studentCount = ref(null)
 const teacherCount = ref(null)
 const totalCount = ref(null)
@@ -29,7 +31,18 @@ const timeline = ref([
         desc: 'ทดสอบระบบกับผู้ใช้จริงและนำเสนอโครงงาน'
     }
 ])
+
+function handleScroll() {
+    showScrollTop.value = window.scrollY > 500
+}
+
+function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
 onMounted(async () => {
+    window.addEventListener('scroll', handleScroll)
+
     const { data, error } = await supabase.rpc('get_user_stats')
 
     if (error) {
@@ -41,6 +54,10 @@ onMounted(async () => {
     studentCount.value = stats?.student_count ?? 0
     teacherCount.value = stats?.teacher_count ?? 0
     totalCount.value = stats?.total_count ?? 0
+})
+
+onUnmounted(() => {
+    window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
@@ -58,7 +75,8 @@ onMounted(async () => {
                     <div class="flex flex-col leading-tight">
                         <span
                             class="font-mali font-bold text-xs xs:text-sm md:text-lg text-white whitespace-nowrap">ห้องเรียนของฉัน</span>
-                        <span class="hidden sm:block font-mitr text-xs text-gray-400 whitespace-nowrap">by บารมี</span>
+                        <span class="hidden sm:block font-mitr text-xs text-gray-400 whitespace-nowrap">by บารมี
+                            ปะวะลัง</span>
                     </div>
                 </div>
                 <div class="hidden md:flex gap-1 absolute left-1/2 -translate-x-1/2">
@@ -293,6 +311,14 @@ onMounted(async () => {
                 </div>
             </div>
         </footer>
+
+        <!-- ========== ปุ่มเลื่อนขึ้นบนสุด ========== -->
+        <Transition name="fade-scale">
+            <button v-if="showScrollTop" @click="scrollToTop" type="button"
+                class="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full border-3 border-dark bg-orange text-dark flex items-center justify-center shadow-offset-sm hover:-translate-y-1 hover:shadow-offset transition-all">
+                <ArrowUp :size="25" :stroke-width="2.5" class="animate-arrow-float" />
+            </button>
+        </Transition>
 
     </div>
 </template>

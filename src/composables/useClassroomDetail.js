@@ -34,7 +34,7 @@ export function useClassroomDetail(classroomId) {
   async function getSubmissionUrl(filePath) {
     const { data, error } = await supabase.storage
       .from('submission-files')
-      .createSignedUrl(filePath, 60 * 5) 
+      .createSignedUrl(filePath, 60 * 5)
 
     if (error) {
       console.error('getSubmissionUrl error:', error)
@@ -125,6 +125,7 @@ export function useClassroomDetail(classroomId) {
     submissions,
     submissionsLoading,
     loadAll,
+    loadMembers,
     loadAssignments,
     loadSubmissions,
     getSubmissionUrl,

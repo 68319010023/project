@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
 import AssignmentModal from '../../components/teacher/AssignmentModal.vue'
+import { supabase } from '../../lib/supabase'
 
 const props = defineProps({
   classroomId: { type: String, required: true },
@@ -12,10 +13,35 @@ const {
   members, membersLoading,
   assignments, assignmentsLoading,
   submissions, submissionsLoading,
-  loadAll, loadAssignments, loadSubmissions,
+  loadAll, loadMembers, loadAssignments, loadSubmissions,
   getSubmissionUrl,
   formatDate,
 } = useClassroomDetail(props.classroomId)
+
+const removingStudentId = ref(null)
+
+async function removeMember(studentId, studentName) {
+  const confirmed = confirm(`ต้องการลบ "${studentName}" ออกจากห้องเรียนใช่ไหม?`)
+  if (!confirmed) return
+
+  removingStudentId.value = studentId
+
+  const { error } = await supabase
+    .from('classroom_enrollments')
+    .delete()
+    .eq('classroom_id', props.classroomId)
+    .eq('student_id', studentId)
+
+  removingStudentId.value = null
+
+  if (error) {
+    console.error('removeMember error:', error)
+    alert('ลบสมาชิกไม่สำเร็จ ลองใหม่อีกครั้ง')
+    return
+  }
+
+  await loadMembers()
+}
 
 async function openSubmission(filePath) {
   const url = await getSubmissionUrl(filePath)
@@ -64,8 +90,14 @@ onMounted(loadAll)
           ยังไม่มีสมาชิกในห้องนี้
         </div>
         <ul v-else class="space-y-2">
-          <li v-for="member in members" :key="member.student_id" class="border-2 border-black rounded-lg px-4 py-2">
-            {{ member.profiles?.name }} {{ member.profiles?.lastname }}
+          <li v-for="member in members" :key="member.student_id"
+            class="border-2 border-black rounded-lg px-4 py-2 flex items-center justify-between">
+            <span>{{ member.profiles?.name }} {{ member.profiles?.lastname }}</span>
+            <button @click="removeMember(member.student_id, `${member.profiles?.name} ${member.profiles?.lastname}`)"
+              :disabled="removingStudentId === member.student_id"
+              class="text-red-600 text-sm font-bold underline disabled:opacity-40">
+              {{ removingStudentId === member.student_id ? 'กำลังลบ...' : 'ลบออก' }}
+            </button>
           </li>
         </ul>
       </section>
