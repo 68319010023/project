@@ -10,9 +10,22 @@ const { profile, signOut, updateProfile } = useAuth()
 const savingNotif = ref(false)
 
 async function toggleNotifications() {
+    if (!profile.value) {
+        return
+    }
+
     savingNotif.value = true
-    await updateProfile({ notifications_enabled: !profile.value.notifications_enabled })
-    savingNotif.value = false
+    try {
+        const nextValue = !profile.value.notifications_enabled
+        const { error } = await updateProfile({ notifications_enabled: nextValue })
+        if (error) {
+            console.error('toggleNotifications error:', error)
+        }
+    } catch (err) {
+        console.error('toggleNotifications unexpected error:', err)
+    } finally {
+        savingNotif.value = false
+    }
 }
 
 async function handleSignOut() {

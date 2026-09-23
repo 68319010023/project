@@ -90,25 +90,32 @@ watch(() => profile.value?.id, async (id) => {
 </script>
 
 <template>
-    <div class="grid gap-7" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
-        <router-link v-for="room in filteredClassrooms" :key="room.id" :to="`/classroom/${room.id}`">
-            <ClassroomCard v-bind="room" />
-        </router-link>
-
-        <button v-if="classrooms.length === 0" type="button"
-            @click="emit(profile?.role === 'teacher' ? 'open-create' : 'open-join')"
-            class="border-3 border-dashed border-dark rounded-2xl min-h-[180px] flex flex-col items-center justify-center gap-2 text-gray hover:bg-purple-light transition">
-            <span class="text-3xl">➕</span>
-            <span class="text-[14px] font-semibold">
-                {{ profile?.role === 'teacher' ? 'สร้างห้องเรียนใหม่' : 'เข้าร่วมห้องเรียน' }}
-            </span>
-        </button>
+    <!-- Skeleton loading: กรอบการ์ดเปล่า ให้ pattern เดียวกับ ClassroomDetail -->
+    <div v-if="loading" class="grid gap-7 animate-pulse" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+        <div v-for="n in 3" :key="n" class="h-[180px] border-3 border-dark rounded-2xl bg-gray-light"></div>
     </div>
 
-    <p v-if="!loading && filteredClassrooms.length === 0" class="text-center text-gray text-[14px] mt-8">
-        {{ searchQuery.trim()
-            ? 'ไม่พบห้องเรียนที่ค้นหา'
-            : `ยังไม่มีห้องเรียน ${profile?.role === 'teacher' ? 'ลองสร้างห้องแรกของคุณเลย!' :
-                'ลองเข้าร่วมด้วยรหัสจากครูผู้สอน'}` }}
-    </p>
+    <template v-else>
+        <div class="grid gap-7" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+            <router-link v-for="room in filteredClassrooms" :key="room.id" :to="`/classroom/${room.id}`">
+                <ClassroomCard v-bind="room" />
+            </router-link>
+
+            <button v-if="classrooms.length === 0" type="button"
+                @click="emit(profile?.role === 'teacher' ? 'open-create' : 'open-join')"
+                class="border-3 border-dashed border-dark rounded-2xl min-h-[180px] flex flex-col items-center justify-center gap-2 text-gray hover:bg-purple-light transition">
+                <span class="text-3xl">➕</span>
+                <span class="text-[14px] font-semibold">
+                    {{ profile?.role === 'teacher' ? 'สร้างห้องเรียนใหม่' : 'เข้าร่วมห้องเรียน' }}
+                </span>
+            </button>
+        </div>
+
+        <p v-if="filteredClassrooms.length === 0" class="text-center text-gray text-[14px] mt-8">
+            {{ searchQuery.trim()
+                ? 'ไม่พบห้องเรียนที่ค้นหา'
+                : `ยังไม่มีห้องเรียน ${profile?.role === 'teacher' ? 'ลองสร้างห้องแรกของคุณเลย!' :
+                    'ลองเข้าร่วมด้วยรหัสจากครูผู้สอน'}` }}
+        </p>
+    </template>
 </template>

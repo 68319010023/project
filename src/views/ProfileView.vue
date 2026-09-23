@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Pencil, Check, X, LogOut, School } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
@@ -18,6 +18,7 @@ const editLastname = ref('')
 const savingName = ref(false)
 
 function startEditName() {
+    if (!profile.value) return
     editName.value = profile.value.name
     editLastname.value = profile.value.lastname
     isEditingName.value = true
@@ -43,6 +44,12 @@ const avatarError = ref('')
 async function handleAvatarChange(event) {
     const file = event.target.files?.[0]
     if (!file) return
+
+    if (!profile.value) {
+        avatarError.value = 'ไม่พบข้อมูลโปรไฟล์ กรุณาลองใหม่อีกครั้ง'
+        event.target.value = ''
+        return
+    }
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         avatarError.value = 'กรุณาเลือกรูป JPG, PNG หรือ WebP'
@@ -87,6 +94,12 @@ const classrooms = ref([])
 const loadingClassrooms = ref(true)
 
 async function loadClassrooms() {
+    if (!profile.value) {
+        // profile ยังไม่พร้อม (race condition ตอนเข้าหน้านี้เร็วเกินไป) — รอ watch ด้านล่างเรียกซ้ำให้เอง
+        return
+    }
+
+    loadingClassrooms.value = true
     const rpcName = profile.value.role === 'teacher' ? 'get_teacher_classrooms' : 'get_student_classrooms'
     const { data, error } = await supabase.rpc(rpcName)
 
@@ -103,7 +116,18 @@ async function handleSignOut() {
     router.push('/login')
 }
 
-onMounted(loadClassrooms)
+onMounted(() => {
+    if (profile.value) {
+        loadClassrooms()
+    }
+    // เผื่อ mount ตอน profile ยังไม่มา (fetchProfile ยังไม่เสร็จ) — โหลดซ้ำอัตโนมัติทันทีที่มาถึง
+    const stop = watch(profile, (val) => {
+        if (val) {
+            loadClassrooms()
+            stop()
+        }
+    })
+})
 </script>
 
 <template>

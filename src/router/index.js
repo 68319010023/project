@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { watch } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
 
@@ -49,6 +50,18 @@ const router = createRouter({
             meta: { requiresAuth: true },
         },
         {
+            path: '/classroom/:id/assignment/:assignmentId',
+            name: 'student-assignment-detail',
+            component: () => import('../views/student/AssignmentDetailView.vue'),
+            meta: { requiresAuth: true, role: 'student' },
+        },
+        {
+            path: '/classroom/:id/assignment/:assignmentId/submissions',
+            name: 'teacher-assignment-detail',
+            component: () => import('../views/teacher/AssignmentDetailView.vue'),
+            meta: { requiresAuth: true, role: 'teacher' },
+        },
+        {
             path: '/settings',
             name: 'settings',
             component: () => import('../views/SettingsView.vue'),
@@ -60,16 +73,43 @@ const router = createRouter({
             component: () => import('../views/ProfileView.vue'),
             meta: { requiresAuth: true },
         },
+
     ],
 })
+
+// รอให้ initAuth() เช็ค session เสร็จก่อนตัดสินใจ redirect
+// ใช้ watch แทนการ poll ด้วย setTimeout: รู้ทันทีที่ loading เปลี่ยนค่า (ไม่ต้องรอรอบถัดไป)
+// และมี timeout กันเคสที่ loading ไม่มีวันเป็น false (เช่น initAuth() error แบบเงียบๆ)
+// ไม่งั้นผู้ใช้จะติดอยู่หน้าเปล่าตลอดไปโดยไม่รู้สาเหตุ
+function waitUntilAuthReady(loadingRef, timeoutMs = 8000) {
+    if (!loadingRef.value) return Promise.resolve()
+
+    return new Promise((resolve) => {
+        let settled = false
+        const stop = watch(loadingRef, (val) => {
+            if (!val && !settled) {
+                settled = true
+                stop()
+                clearTimeout(timer)
+                resolve()
+            }
+        })
+
+        const timer = setTimeout(() => {
+            if (!settled) {
+                settled = true
+                stop()
+                console.error('waitUntilAuthReady: timeout รอ auth เกิน', timeoutMs, 'ms — ดำเนินการต่อโดยถือว่ายังไม่ล็อกอิน')
+                resolve()
+            }
+        }, timeoutMs)
+    })
+}
 
 router.beforeEach(async (to) => {
     const { user, profile, loading, fetchProfile } = useAuth()
 
-    // กัน race condition: รอ initAuth() เช็ค session เสร็จก่อนตัดสินใจ redirect
-    while (loading.value) {
-        await new Promise(resolve => setTimeout(resolve, 30))
-    }
+    await waitUntilAuthReady(loading)
 
     const isLoggedIn = !!user.value
 

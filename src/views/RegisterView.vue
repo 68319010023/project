@@ -18,6 +18,7 @@ const selectedAvatar = ref(null)
 const customAvatarFile = ref(null)
 const customAvatarPreview = ref(null)
 const errorMsg = ref('')
+const successMsg = ref('')
 const fieldErrors = ref({})
 const loading = ref(false)
 const profileImageBucket = 'profile-images'
@@ -26,24 +27,34 @@ const maxAvatarSize = 5 * 1024 * 1024
 function goToAvatarStep() {
     errorMsg.value = ''
     fieldErrors.value = {}
+    const messages = []
 
-    if (!form.value.name.trim()) fieldErrors.value.name = true
-    if (!form.value.lastname.trim()) fieldErrors.value.lastname = true
-    if (!form.value.email.trim()) fieldErrors.value.email = true
-    if (fieldErrors.value.name || fieldErrors.value.lastname || fieldErrors.value.email) {
-        errorMsg.value = 'กรุณากรอกชื่อ นามสกุล และอีเมลให้ครบ'
-        return
+    if (!form.value.name.trim()) {
+        fieldErrors.value.name = true
     }
-    if (!/^\S+@\S+\.\S+$/.test(form.value.email.trim())) {
+    if (!form.value.lastname.trim()) {
+        fieldErrors.value.lastname = true
+    }
+    if (!form.value.email.trim()) {
         fieldErrors.value.email = true
-        errorMsg.value = 'กรุณากรอกอีเมลให้ถูกต้อง'
-        return
+    } else if (!/^\S+@\S+\.\S+$/.test(form.value.email.trim())) {
+        fieldErrors.value.email = true
+        messages.push('อีเมลไม่ถูกต้อง')
     }
-    if (form.value.password.length < 6) {
+    if (!form.value.password || form.value.password.length < 6) {
         fieldErrors.value.password = true
-        errorMsg.value = 'รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร'
+        messages.push('รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร')
+    }
+
+    if (fieldErrors.value.name || fieldErrors.value.lastname || fieldErrors.value.email) {
+        messages.unshift('กรุณากรอกชื่อ นามสกุล และอีเมลให้ครบ')
+    }
+
+    if (messages.length > 0) {
+        errorMsg.value = messages.join(' / ')
         return
     }
+
     step.value = 2
 }
 
@@ -132,7 +143,7 @@ async function handleRegister() {
         const userId = signUpData.user?.id
         if (!userId) {
             // กรณีโปรเจกต์เปิด "ยืนยันอีเมล" ไว้ จะยังไม่มี session ทันที
-            errorMsg.value = 'สมัครสำเร็จ กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
+            successMsg.value = 'สมัครสำเร็จ กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
             loading.value = false
             return
         }
@@ -166,9 +177,11 @@ async function handleRegister() {
 </script>
 
 <template>
-    <div class="auth-page min-h-screen flex items-start sm:items-center justify-center px-4 sm:px-6 pt-24 pb-8 sm:py-10 font-mitr">
+    <div
+        class="auth-page min-h-screen flex items-start sm:items-center justify-center px-4 sm:px-6 pt-24 pb-8 sm:py-10 font-mitr">
         <router-link to="/" class="auth-home-link">กลับหน้าแรก</router-link>
-        <div class="relative z-10 bg-white border-3 border-dark rounded-2xl shadow-offset max-w-[480px] w-full p-5 sm:p-8">
+        <div
+            class="relative z-10 bg-white border-3 border-dark rounded-2xl shadow-offset max-w-[480px] w-full p-5 sm:p-8">
 
             <h1 class="font-mali font-bold text-2xl text-center mb-1">สมัครสมาชิก</h1>
             <p class="text-center text-gray text-[13px] mb-6">
@@ -209,12 +222,14 @@ async function handleRegister() {
                 <div>
                     <label class="text-[13px] font-semibold">บทบาท</label>
                     <div class="flex gap-3 mt-1.5">
-                        <label class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer"
+                        <label
+                            class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer"
                             :class="form.role === 'student' ? 'bg-purple-light' : 'bg-white'">
                             <input type="radio" value="student" v-model="form.role" class="hidden" />
                             🎓 นักเรียน
                         </label>
-                        <label class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer"
+                        <label
+                            class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer"
                             :class="form.role === 'teacher' ? 'bg-purple-light' : 'bg-white'">
                             <input type="radio" value="teacher" v-model="form.role" class="hidden" />
                             🧑‍🏫 ครู
@@ -230,27 +245,18 @@ async function handleRegister() {
 
             <!-- STEP 2: เลือกอวตาร -->
             <div v-else class="flex flex-col gap-5">
-                <AvatarPicker
-                    :model-value="selectedAvatar"
-                    @update:model-value="selectPresetAvatar"
-                />
+                <AvatarPicker :model-value="selectedAvatar" @update:model-value="selectPresetAvatar" />
 
                 <div class="border-2 border-dashed border-dark rounded-xl p-4">
                     <div class="flex items-center gap-4">
-                        <img
-                            v-if="customAvatarPreview"
-                            :src="customAvatarPreview"
+                        <img v-if="customAvatarPreview" :src="customAvatarPreview"
                             class="w-16 h-16 rounded-lg border-2 border-dark object-cover shrink-0"
-                            alt="รูปโปรไฟล์ที่เลือก"
-                        />
-                        <label class="px-4 py-2.5 rounded-lg border-2 border-dark bg-white text-[13px] font-semibold cursor-pointer hover:bg-gray-light">
+                            alt="รูปโปรไฟล์ที่เลือก" />
+                        <label
+                            class="px-4 py-2.5 rounded-lg border-2 border-dark bg-white text-[13px] font-semibold cursor-pointer hover:bg-gray-light">
                             อัปโหลดรูปของฉัน
-                            <input
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                class="sr-only"
-                                @change="handleCustomAvatarChange"
-                            />
+                            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
+                                @change="handleCustomAvatarChange" />
                         </label>
                     </div>
                 </div>
@@ -267,8 +273,13 @@ async function handleRegister() {
                 </div>
             </div>
 
-            <p v-if="errorMsg" class="error-pop text-danger text-[13px] text-center mt-4 bg-red-50 border-2 border-danger rounded-lg py-2 px-3">
+            <p v-if="errorMsg"
+                class="error-pop text-danger text-[13px] text-center mt-4 bg-red-50 border-2 border-danger rounded-lg py-2 px-3">
                 {{ errorMsg }}
+            </p>
+            <p v-if="successMsg"
+                class="error-pop text-green-dark text-[13px] text-center mt-4 bg-green-50 border-2 border-green-dark rounded-lg py-2 px-3">
+                {{ successMsg }}
             </p>
 
             <p class="text-center text-[13px] text-gray mt-6">

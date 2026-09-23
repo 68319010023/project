@@ -14,3 +14,8 @@ dist/
 Thumbs.db
 avatars/
 img/
+
+
+supabase/.temp
+supabase/.branches
+

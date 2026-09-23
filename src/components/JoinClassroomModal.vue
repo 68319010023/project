@@ -16,6 +16,12 @@ async function handleJoin() {
         errorMsg.value = 'กรุณากรอกรหัสห้องเรียน'
         return
     }
+
+    if (!profile.value?.id) {
+        errorMsg.value = 'กรุณาเข้าสู่ระบบก่อนเข้าร่วมห้องเรียน'
+        return
+    }
+
     errorMsg.value = ''
     loading.value = true
 
@@ -23,12 +29,6 @@ async function handleJoin() {
         .rpc('find_classroom_by_code', { input_code: codeInput })
 
     const classroom = results?.[0]
-
-    if (findError || !classroom) {
-        errorMsg.value = 'ไม่พบห้องเรียนที่ใช้รหัสนี้'
-        loading.value = false
-        return
-    }
 
     if (findError || !classroom) {
         errorMsg.value = 'ไม่พบห้องเรียนที่ใช้รหัสนี้'

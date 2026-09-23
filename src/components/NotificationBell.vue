@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, ClipboardCheck, FileCheck, BookOpen, Trash2 } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
@@ -20,16 +20,25 @@ const unreadCount = () => notifications.value.filter(n => !n.is_read).length
 let channel = null
 
 function subscribeToNotifications() {
+    const userId = profile.value?.id
+    if (!userId) return
+
+    if (channel) {
+        supabase.removeChannel(channel)
+        channel = null
+    }
+
+    const channelName = `notifications-${userId}-${crypto.randomUUID()}`
+
     channel = supabase
-        .channel('notifications-' + profile.value.id)
+        .channel(channelName)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'notifications',
-            filter: `user_id=eq.${profile.value.id}`
+            filter: `user_id=eq.${userId}`
         }, (payload) => {
             notifications.value.unshift(payload.new)
-            // กันไม่ให้ list ที่แสดงบนจอบวมไม่มีที่สิ้นสุดจาก real-time
             if (notifications.value.length > PAGE_SIZE) {
                 notifications.value = notifications.value.slice(0, PAGE_SIZE)
             }
@@ -42,38 +51,59 @@ onUnmounted(() => {
 })
 
 async function loadNotifications() {
-    const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', profile.value.id)
-        .order('created_at', { ascending: false })
-        .range(0, PAGE_SIZE - 1)
-
-    if (!error) {
-        notifications.value = data
-        hasMore.value = data.length === PAGE_SIZE
+    const userId = profile.value?.id
+    if (!userId) {
+        loading.value = false
+        return
     }
-    loading.value = false
+
+    try {
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .range(0, PAGE_SIZE - 1)
+
+        if (!error) {
+            notifications.value = data
+            hasMore.value = data.length === PAGE_SIZE
+        }
+    } catch (err) {
+        console.error('loadNotifications error:', err)
+    } finally {
+        loading.value = false
+    }
 }
 
 async function loadMore() {
+    const userId = profile.value?.id
+    if (!userId || !hasMore.value) return
+
     loadingMore.value = true
 
-    const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', profile.value.id)
-        .order('created_at', { ascending: false })
-        .range(notifications.value.length, notifications.value.length + PAGE_SIZE - 1)
+    try {
+        const { data, error } = await supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .range(notifications.value.length, notifications.value.length + PAGE_SIZE - 1)
 
-    if (!error) {
-        notifications.value = [...notifications.value, ...data]
-        hasMore.value = data.length === PAGE_SIZE
+        if (!error) {
+            notifications.value = [...notifications.value, ...data]
+            hasMore.value = data.length === PAGE_SIZE
+        }
+    } catch (err) {
+        console.error('loadMore error:', err)
+    } finally {
+        loadingMore.value = false
     }
-    loadingMore.value = false
 }
 
 async function markAsRead(notification) {
+    if (!notification?.id) return
+
     if (!notification.is_read) {
         notification.is_read = true
         await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id)
@@ -83,19 +113,25 @@ async function markAsRead(notification) {
 }
 
 async function deleteNotification(event, notification) {
-    event.stopPropagation() // กันไม่ให้ trigger markAsRead/navigate ตอนกดถังขยะ
+    event.stopPropagation()
+    if (!notification?.id) return
 
     const previous = notifications.value
     notifications.value = notifications.value.filter(n => n.id !== notification.id)
 
-    const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notification.id)
+    try {
+        const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('id', notification.id)
 
-    if (error) {
-        console.error('deleteNotification error:', error)
-        notifications.value = previous // rollback ถ้าลบไม่สำเร็จ
+        if (error) {
+            console.error('deleteNotification error:', error)
+            notifications.value = previous
+        }
+    } catch (err) {
+        console.error('deleteNotification unexpected error:', err)
+        notifications.value = previous
     }
 }
 
@@ -126,16 +162,24 @@ async function confirmDeleteAll() {
 }
 
 async function performDeleteAll() {
+    const userId = profile.value?.id
+    if (!userId) return
+
     const previous = notifications.value
     notifications.value = []
 
-    const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', profile.value.id)
+    try {
+        const { error } = await supabase
+            .from('notifications')
+            .delete()
+            .eq('user_id', userId)
 
-    if (error) {
-        console.error('deleteAllNotifications error:', error)
+        if (error) {
+            console.error('deleteAllNotifications error:', error)
+            notifications.value = previous
+        }
+    } catch (err) {
+        console.error('deleteAllNotifications unexpected error:', err)
         notifications.value = previous
     }
 }
@@ -146,9 +190,26 @@ function iconFor(type) {
     return BookOpen
 }
 
+watch(
+    () => profile.value?.id,
+    (userId) => {
+        if (!userId) {
+            notifications.value = []
+            loading.value = false
+            return
+        }
+
+        loadNotifications()
+        subscribeToNotifications()
+    },
+    { immediate: true }
+)
+
 onMounted(() => {
-    loadNotifications()
-    subscribeToNotifications()
+    if (profile.value?.id) {
+        loadNotifications()
+        subscribeToNotifications()
+    }
 })
 </script>
 

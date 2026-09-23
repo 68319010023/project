@@ -2,7 +2,12 @@
 import { ref, onMounted } from 'vue'
 import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
 import { useAuth } from '../../composables/useAuth.js'
-import SubmitModal from '../../components/student/SubmitModal.vue'
+import AppNavbar from '../../components/AppNavbar.vue'
+import HeroSection from '../../components/HeroSection.vue'
+import TabNav from '../../components/TabNav.vue'
+import Overview from '../../components/ClassroomOverview.vue'
+import Members from '../../components/student/Members.vue'
+import Assignments from '../../components/student/Assignments.vue'
 
 const props = defineProps({
   classroomId: { type: String, required: true },
@@ -13,12 +18,15 @@ const {
   members, membersLoading,
   assignments, assignmentsLoading,
   submissions, submissionsLoading,
-  loadAll, loadSubmissions,
+  memberCount, assignmentCount, dueSoonCount,
+  mySubmittedCount, upcomingAssignments, isLate,
+  loadAll,
   formatDate,
 } = useClassroomDetail(props.classroomId)
 
 const { user } = useAuth()
-const submittingAssignmentId = ref(null)
+
+const activeTab = ref('overview')
 
 function mySubmissionFor(assignmentId) {
   return submissions.value.find(
@@ -26,83 +34,61 @@ function mySubmissionFor(assignmentId) {
   )
 }
 
-async function handleSubmitted() {
-  await loadSubmissions()
-}
-
 onMounted(loadAll)
 </script>
 
 <template>
-  <div class="p-8">
-    <div v-if="loading">กำลังโหลด...</div>
-    <div v-else-if="!classroom">ไม่พบห้องเรียนนี้</div>
-    <div v-else>
-      <h1 class="font-mali text-2xl font-bold">{{ classroom.name }}</h1>
-      <p class="text-gray mt-1">รหัสห้อง: {{ classroom.class_code }}</p>
-      <p class="text-gray text-sm mt-1">
-        ครูผู้สอน: {{ classroom.profiles?.name }} {{ classroom.profiles?.lastname }}
-      </p>
+  <div class="bg-gray-light min-h-screen font-mitr">
+    <AppNavbar :show-search="false" :breadcrumb="[
+      { label: 'หน้ารวมห้องเรียน', to: '/student' },
+      { label: classroom?.name ?? '...' }
+    ]" />
 
-      <section class="mt-8">
-        <h2 class="font-mali text-xl font-bold mb-3">เพื่อนร่วมห้อง</h2>
-
-        <div v-if="membersLoading">กำลังโหลดรายชื่อ...</div>
-        <div v-else-if="members.length === 0" class="text-gray">
-          ยังไม่มีเพื่อนในห้องนี้
+    <!-- Skeleton loading: เลียนแบบโครงหน้าจริง (hero + tab + content) -->
+    <div v-if="loading" class="animate-pulse">
+      <div class="border-b-3 border-dark px-6 py-10 bg-gray-light">
+        <div class="max-w-[1000px] mx-auto">
+          <div class="h-8 w-48 bg-gray-300 rounded-lg"></div>
+          <div class="h-5 w-24 bg-gray-300 rounded-full mt-3"></div>
         </div>
-        <ul v-else class="space-y-2">
-          <li
-            v-for="member in members"
-            :key="member.student_id"
-            class="border-2 border-black rounded-lg px-4 py-2"
-          >
-            {{ member.profiles?.name }} {{ member.profiles?.lastname }}
-          </li>
-        </ul>
-      </section>
-
-      <section class="mt-8">
-        <h2 class="font-mali text-xl font-bold mb-3">การบ้าน</h2>
-
-        <div v-if="assignmentsLoading || submissionsLoading">กำลังโหลดการบ้าน...</div>
-        <div v-else-if="assignments.length === 0" class="text-gray">
-          ยังไม่มีการบ้านในห้องนี้
-        </div>
-        <ul v-else class="space-y-3">
-          <li
-            v-for="assignment in assignments"
-            :key="assignment.id"
-            class="border-2 border-black rounded-lg p-4 flex items-center justify-between"
-          >
-            <div>
-              <p class="font-bold">{{ assignment.title }}</p>
-              <p v-if="assignment.description" class="text-sm text-gray mt-1">
-                {{ assignment.description }}
-              </p>
-              <p class="text-sm text-gray mt-1">
-                กำหนดส่ง: {{ formatDate(assignment.due_date) }}
-              </p>
-              <p v-if="mySubmissionFor(assignment.id)" class="text-sm text-green-700 font-bold mt-1">
-                ✓ ส่งแล้ว ({{ mySubmissionFor(assignment.id).original_filename }})
-              </p>
-            </div>
-            <button
-              @click="submittingAssignmentId = assignment.id"
-              class="border-2 border-black rounded-lg px-4 py-1 font-bold whitespace-nowrap"
-            >
-              {{ mySubmissionFor(assignment.id) ? 'ส่งใหม่' : 'ส่งการบ้าน' }}
-            </button>
-          </li>
-        </ul>
-      </section>
+      </div>
+      <div class="border-b-3 border-dark bg-white px-6 flex gap-6 max-w-[1000px] mx-auto">
+        <div class="h-11 w-20 bg-gray-200 rounded my-3"></div>
+        <div class="h-11 w-20 bg-gray-200 rounded my-3"></div>
+        <div class="h-11 w-20 bg-gray-200 rounded my-3"></div>
+      </div>
+      <div class="max-w-[1000px] mx-auto px-6 py-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div v-for="n in 3" :key="n" class="h-[120px] border-3 border-dark rounded-xl bg-gray-light"></div>
+      </div>
     </div>
 
-    <SubmitModal
-      v-if="submittingAssignmentId"
-      :assignment-id="submittingAssignmentId"
-      @close="submittingAssignmentId = null"
-      @submitted="handleSubmitted"
-    />
+    <div v-else-if="!classroom" class="flex flex-col items-center gap-4 text-center py-20">
+      <p class="text-gray text-[15px]">ไม่พบห้องเรียนนี้</p>
+      <router-link to="/student"
+        class="px-5 py-2.5 rounded-lg border-2 border-dark bg-purple text-dark font-semibold text-[14px] shadow-offset-sm hover:-translate-y-0.5 transition">
+        กลับหน้ารวมห้องเรียน
+      </router-link>
+    </div>
+
+    <template v-else>
+
+      <HeroSection :classroom="classroom" :classroom-id="classroomId" />
+
+      <TabNav v-model:active-tab="activeTab" />
+      <div v-reveal>
+        <Overview v-if= "activeTab === 'overview'" :classroom-id="classroomId" :member-count="memberCount" :assignment-count="assignmentCount"
+          :submitted-count="user ? mySubmittedCount(user.id).value : 0" :due-soon-count="dueSoonCount"
+          :upcoming-assignments="user ? upcomingAssignments(user.id).value : []"
+          :loading="loading || membersLoading || assignmentsLoading || submissionsLoading"
+          @go-tab="activeTab = $event" />
+
+        <Members v-else-if="activeTab === 'members'" :classroom="classroom" :members="members"
+          :members-loading="membersLoading" />
+
+        <Assignments v-else-if="activeTab === 'assignments'" :classroom-id="classroomId" :assignments="assignments"
+          :assignments-loading="assignmentsLoading" :submissions-loading="submissionsLoading"
+          :my-submission-for="mySubmissionFor" :format-date="formatDate" :is-late="isLate" />
+      </div>
+    </template>
   </div>
 </template>

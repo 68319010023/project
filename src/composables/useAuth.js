@@ -30,12 +30,27 @@ async function initAuth() {
     if (initialized) return
     initialized = true
 
-    const { data: { session } } = await supabase.auth.getSession()
-    user.value = session?.user ?? null
-    if (user.value) {
-        await fetchProfile(user.value.id)
+    try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+        if (sessionError) {
+            console.error('initAuth getSession error:', sessionError)
+        }
+
+        user.value = session?.user ?? null
+        if (user.value) {
+            await fetchProfile(user.value.id)
+        }
+    } catch (err) {
+        // เช่น เน็ตหลุด/getSession throw — อย่าปล่อยให้ loading ค้าง true ตลอดไป
+        console.error('initAuth unexpected error:', err)
+        user.value = null
+        profile.value = null
+    } finally {
+        // การันตีว่า loading จะกลับเป็น false เสมอ ไม่ว่า try จะสำเร็จหรือพัง
+        // เพื่อไม่ให้ router guard (waitUntilAuthReady) ต้องพึ่ง timeout ค้างหน้าจอ
+        loading.value = false
     }
-    loading.value = false
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
         user.value = session?.user ?? null
