@@ -17,14 +17,18 @@ const {
   members, membersLoading, loadMembers,
   assignments, assignmentsLoading, loadAssignments,
   submissions, submissionsLoading, loadSubmissions,
+  quizzes, quizzesLoading, loadQuizzes,
   memberCount, assignmentCount, submittedCount, dueSoonCount,
-  loadAll,fetchSubmissionItems,
-  getSubmissionUrl, formatDate,
+  loadAll, fetchSubmissionItems,
+  getSubmissionUrl, formatDate, isLate,
 } = useClassroomDetail(props.classroomId)
 
 const activeTab = ref('overview')
 
-onMounted(loadAll)
+onMounted(async () => {
+  await loadAll()
+  await loadQuizzes()
+})
 </script>
 
 <template>
@@ -53,9 +57,10 @@ onMounted(loadAll)
 
       <ClassroomAssignments v-else-if="activeTab === 'assignments'" :classroom-id="classroomId"
         :assignments="assignments" :assignments-loading="assignmentsLoading" :submissions="submissions"
-        :submissions-loading="submissionsLoading" :member-count="memberCount" :get-submission-url="getSubmissionUrl"
+        :submissions-loading="submissionsLoading" :quizzes="quizzes" :quizzes-loading="quizzesLoading"
+        :member-count="memberCount" :get-submission-url="getSubmissionUrl"
         :fetch-submission-items="fetchSubmissionItems" :format-date="formatDate" :is-late="isLate"
-        @reload-assignments="loadAssignments" @reload-submissions="loadSubmissions" />
+        @reload-assignments="loadAssignments" @reload-submissions="loadSubmissions" @reload-quizzes="loadQuizzes" />
     </template>
   </div>
 </template>

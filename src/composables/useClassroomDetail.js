@@ -14,6 +14,21 @@ export function useClassroomDetail(classroomId) {
   const submissions = ref([])
   const submissionsLoading = ref(true)
 
+  const quizzes = ref([])
+  const quizzesLoading = ref(true)
+
+  const quizDetail = ref(null)
+  const quizDetailLoading = ref(true)
+
+  const quizQuestions = ref([])          // ไม่มี correct_answer ติดมาด้วย (select เฉพาะที่จำเป็น)
+  const quizQuestionsLoading = ref(true)
+
+  const myQuizSubmission = ref(null)
+  const myQuizSubmissionLoading = ref(true)
+
+  const quizSubmissions = ref([])        // ทุก submission ของทุก quiz ในห้อง (ใช้ทั้งฝั่งครู/แสดงสถานะฝั่งนักเรียน)
+  const quizSubmissionsLoading = ref(true)
+
   // --- สำหรับหน้ารายละเอียดงานเดี่ยว ---
   const assignmentDetail = ref(null)
   const assignmentDetailLoading = ref(true)
@@ -134,9 +149,10 @@ export function useClassroomDetail(classroomId) {
     try {
       const { data, error } = await supabase
         .from('assignments')
-        .select('id, title, description, due_date, max_score, attachment_url, attachment_name')
+        .select('id, title, description, due_date, max_score, attachment_url, attachment_name, created_at')
         .eq('classroom_id', classroomId)
         .order('due_date', { ascending: true })
+
 
       if (error) {
         console.error('loadAssignments error:', error)
@@ -149,6 +165,30 @@ export function useClassroomDetail(classroomId) {
       assignments.value = []
     } finally {
       assignmentsLoading.value = false
+    }
+  }
+
+
+  async function loadQuizzes() {
+    quizzesLoading.value = true
+    try {
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('id, title, due_date, max_score, created_at')
+        .eq('classroom_id', classroomId)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('loadQuizzes error:', error)
+        quizzes.value = []
+      } else {
+        quizzes.value = data
+      }
+    } catch (err) {
+      console.error('loadQuizzes unexpected error:', err)
+      quizzes.value = []
+    } finally {
+      quizzesLoading.value = false
     }
   }
 
@@ -273,96 +313,96 @@ export function useClassroomDetail(classroomId) {
     }
   }
 
-async function ensureSubmission(assignmentId, studentId) {
-  if (mySubmission.value?.id) return mySubmission.value.id
+  async function ensureSubmission(assignmentId, studentId) {
+    if (mySubmission.value?.id) return mySubmission.value.id
 
-  try {
-    const { data, error } = await supabase
-      .from('assignment_submissions')
-      .upsert(
-        { assignment_id: assignmentId, student_id: studentId, submitted_at: new Date().toISOString() },
-        { onConflict: 'assignment_id,student_id' }
-      )
-      .select('id, submitted_at, score, feedback')
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('assignment_submissions')
+        .upsert(
+          { assignment_id: assignmentId, student_id: studentId, submitted_at: new Date().toISOString() },
+          { onConflict: 'assignment_id,student_id' }
+        )
+        .select('id, submitted_at, score, feedback')
+        .single()
 
-    if (error) {
-      console.error('ensureSubmission error:', error)
+      if (error) {
+        console.error('ensureSubmission error:', error)
+        return null
+      }
+
+      mySubmission.value = data
+      return data.id
+    } catch (err) {
+      console.error('ensureSubmission unexpected error:', err)
       return null
     }
-
-    mySubmission.value = data
-    return data.id
-  } catch (err) {
-    console.error('ensureSubmission unexpected error:', err)
-    return null
   }
-}
 
-async function addSubmissionItem(submissionId, { type, url, label }) {
-  try {
-    const { error } = await supabase
-      .from('submission_items')
-      .insert({ submission_id: submissionId, type, url, label })
+  async function addSubmissionItem(submissionId, { type, url, label }) {
+    try {
+      const { error } = await supabase
+        .from('submission_items')
+        .insert({ submission_id: submissionId, type, url, label })
 
-    if (error) {
-      console.error('addSubmissionItem error:', error)
-      return { error }
+      if (error) {
+        console.error('addSubmissionItem error:', error)
+        return { error }
+      }
+
+      await loadSubmissionItems(submissionId)
+      return { error: null }
+    } catch (err) {
+      console.error('addSubmissionItem unexpected error:', err)
+      return { error: err }
     }
-
-    await loadSubmissionItems(submissionId)
-    return { error: null }
-  } catch (err) {
-    console.error('addSubmissionItem unexpected error:', err)
-    return { error: err }
   }
-}
 
- async function deleteSubmissionItem(itemId, submissionId) {
-  try {
-    const { error } = await supabase
-      .from('submission_items')
-      .delete()
-      .eq('id', itemId)
+  async function deleteSubmissionItem(itemId, submissionId) {
+    try {
+      const { error } = await supabase
+        .from('submission_items')
+        .delete()
+        .eq('id', itemId)
 
-    if (error) {
-      console.error('deleteSubmissionItem error:', error)
-      return { error }
+      if (error) {
+        console.error('deleteSubmissionItem error:', error)
+        return { error }
+      }
+
+      await loadSubmissionItems(submissionId)
+
+      if (submissionItems.value.length === 0) {
+        await unsubmit(submissionId)
+      }
+
+      return { error: null }
+    } catch (err) {
+      console.error('deleteSubmissionItem unexpected error:', err)
+      return { error: err }
     }
-
-    await loadSubmissionItems(submissionId)
-
-    if (submissionItems.value.length === 0) {
-      await unsubmit(submissionId)
-    }
-
-    return { error: null }
-  } catch (err) {
-    console.error('deleteSubmissionItem unexpected error:', err)
-    return { error: err }
   }
-}
 
-async function unsubmit(submissionId) {
-  try {
-    const { error } = await supabase
-      .from('assignment_submissions')
-      .delete()
-      .eq('id', submissionId)
+  async function unsubmit(submissionId) {
+    try {
+      const { error } = await supabase
+        .from('assignment_submissions')
+        .delete()
+        .eq('id', submissionId)
 
-    if (error) {
-      console.error('unsubmit error:', error)
-      return { error }
+      if (error) {
+        console.error('unsubmit error:', error)
+        return { error }
+      }
+
+      mySubmission.value = null
+      submissionItems.value = []
+      return { error: null }
+    } catch (err) {
+      console.error('unsubmit unexpected error:', err)
+      return { error: err }
     }
-
-    mySubmission.value = null
-    submissionItems.value = []
-    return { error: null }
-  } catch (err) {
-    console.error('unsubmit unexpected error:', err)
-    return { error: err }
   }
-}
 
   function formatDate(dateStr) {
     if (!dateStr) return '-'
@@ -375,16 +415,16 @@ async function unsubmit(submissionId) {
     })
   }
 
- async function loadAll() {
-  try {
-    await Promise.all([loadClassroom(), loadMembers(), loadAssignments()])
-    await loadSubmissions()
-  } catch (err) {
-    // ไม่ควรมาถึงจุดนี้แล้ว เพราะฟังก์ชันย่อยทุกตัวถูก catch ไว้แล้วในตัวเอง
-    // เก็บไว้เป็น safety net เผื่อกรณีมีคนเพิ่มฟังก์ชันใหม่ในอนาคตแล้วลืมใส่ try/catch
-    console.error('loadAll unexpected error:', err)
+  async function loadAll() {
+    try {
+      await Promise.all([loadClassroom(), loadMembers(), loadAssignments()])
+      await loadSubmissions()
+    } catch (err) {
+      // ไม่ควรมาถึงจุดนี้แล้ว เพราะฟังก์ชันย่อยทุกตัวถูก catch ไว้แล้วในตัวเอง
+      // เก็บไว้เป็น safety net เผื่อกรณีมีคนเพิ่มฟังก์ชันใหม่ในอนาคตแล้วลืมใส่ try/catch
+      console.error('loadAll unexpected error:', err)
+    }
   }
-}
 
   function isLate(dueDate, comparedTo) {
     if (!dueDate) return false
@@ -425,6 +465,137 @@ async function unsubmit(submissionId) {
         .sort((a, b) => a.daysLeft - b.daysLeft)
     })
   }
+
+  async function loadQuizDetail(quizId) {
+    quizDetailLoading.value = true
+    try {
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select(`
+        id, title, due_date, max_score, classroom_id,
+        classrooms(name, profiles:teacher_id(name, lastname))
+      `)
+        .eq('id', quizId)
+        .single()
+
+      if (error) {
+        console.error('loadQuizDetail error:', error)
+        quizDetail.value = null
+      } else {
+        quizDetail.value = data
+      }
+    } catch (err) {
+      console.error('loadQuizDetail unexpected error:', err)
+      quizDetail.value = null
+    } finally {
+      quizDetailLoading.value = false
+    }
+  }
+
+  // ⚠️ สำคัญ: select เฉพาะคอลัมน์ที่จำเป็น ห้ามมี correct_answer หลุดมาด้วยเด็ดขาด
+  async function loadQuizQuestions(quizId) {
+    quizQuestionsLoading.value = true
+    try {
+      const { data, error } = await supabase
+        .from('quiz_questions')
+        .select('id, question, choices, type, points')
+        .eq('quiz_id', quizId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.error('loadQuizQuestions error:', error)
+        quizQuestions.value = []
+      } else {
+        quizQuestions.value = data
+      }
+    } catch (err) {
+      console.error('loadQuizQuestions unexpected error:', err)
+      quizQuestions.value = []
+    } finally {
+      quizQuestionsLoading.value = false
+    }
+  }
+
+  async function loadMyQuizSubmission(quizId, studentId) {
+    myQuizSubmissionLoading.value = true
+    try {
+      const { data, error } = await supabase
+        .from('quiz_submissions')
+        .select('id, answers, score, is_graded, submitted_at')
+        .eq('quiz_id', quizId)
+        .eq('student_id', studentId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('loadMyQuizSubmission error:', error)
+        myQuizSubmission.value = null
+      } else {
+        myQuizSubmission.value = data
+      }
+    } catch (err) {
+      console.error('loadMyQuizSubmission unexpected error:', err)
+      myQuizSubmission.value = null
+    } finally {
+      myQuizSubmissionLoading.value = false
+    }
+  }
+
+  // ตรวจ + บันทึกคะแนนทั้งหมดเกิดขึ้นฝั่งเซิร์ฟเวอร์ผ่าน RPC — เฉลยไม่มีวันหลุดมาที่ frontend
+  async function submitQuiz(quizId, answers) {
+    try {
+      const { data, error } = await supabase
+        .rpc('submit_quiz', { p_quiz_id: quizId, p_answers: answers })
+        .single()
+
+      if (error) {
+         console.error('submitQuiz error:', error.code, error.message, error.details, error.hint)
+        return { error }
+      }
+
+      myQuizSubmission.value = {
+        id: data.submission_id,
+        score: data.score,
+        is_graded: data.is_graded,
+        submitted_at: new Date().toISOString(),
+      }
+      return { data, error: null }
+    } catch (err) {
+      console.error('submitQuiz unexpected error:', err)
+      return { error: err }
+    }
+  }
+
+  // โหลด quiz_submissions ทั้งหมดของห้อง (ใช้แสดง badge สถานะในลิสต์ ทั้งฝั่งครู/นักเรียน)
+  async function loadQuizSubmissions() {
+    quizSubmissionsLoading.value = true
+
+    const quizIds = quizzes.value.map((q) => q.id)
+    if (quizIds.length === 0) {
+      quizSubmissions.value = []
+      quizSubmissionsLoading.value = false
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('quiz_submissions')
+        .select('id, quiz_id, student_id, score, is_graded, submitted_at')
+        .in('quiz_id', quizIds)
+
+      if (error) {
+        console.error('loadQuizSubmissions error:', error)
+        quizSubmissions.value = []
+      } else {
+        quizSubmissions.value = data
+      }
+    } catch (err) {
+      console.error('loadQuizSubmissions unexpected error:', err)
+      quizSubmissions.value = []
+    } finally {
+      quizSubmissionsLoading.value = false
+    }
+  }
+
   return {
     classroom, loading,
     members, membersLoading,
@@ -438,6 +609,10 @@ async function unsubmit(submissionId) {
     mySubmission, mySubmissionLoading, loadMySubmission,
     submissionItems, submissionItemsLoading, loadSubmissionItems, fetchSubmissionItems,
     ensureSubmission, addSubmissionItem, deleteSubmissionItem, unsubmit,
-    getAssignmentAttachmentUrl,
+    getAssignmentAttachmentUrl, quizzes, quizzesLoading, loadQuizzes, quizDetail, quizDetailLoading, loadQuizDetail,
+    quizQuestions, quizQuestionsLoading, loadQuizQuestions,
+    myQuizSubmission, myQuizSubmissionLoading, loadMyQuizSubmission,
+    submitQuiz,
+    quizSubmissions, quizSubmissionsLoading, loadQuizSubmissions,
   }
 }

@@ -18,9 +18,11 @@ const {
   members, membersLoading,
   assignments, assignmentsLoading,
   submissions, submissionsLoading,
+  quizzes, quizzesLoading,
+  quizSubmissions, quizSubmissionsLoading,
   memberCount, assignmentCount, dueSoonCount,
   mySubmittedCount, upcomingAssignments, isLate,
-  loadAll,
+  loadAll, loadQuizzes, loadQuizSubmissions,
   formatDate,
 } = useClassroomDetail(props.classroomId)
 
@@ -34,7 +36,17 @@ function mySubmissionFor(assignmentId) {
   )
 }
 
-onMounted(loadAll)
+function myQuizSubmissionFor(quizId) {
+  return quizSubmissions.value.find(
+    (s) => s.quiz_id === quizId && s.student_id === user.value?.id
+  )
+}
+
+onMounted(async () => {
+  loadAll()
+  await loadQuizzes()
+  await loadQuizSubmissions()
+})
 </script>
 
 <template>
@@ -76,9 +88,9 @@ onMounted(loadAll)
 
       <TabNav v-model:active-tab="activeTab" />
       <div v-reveal>
-        <Overview v-if= "activeTab === 'overview'" :classroom-id="classroomId" :member-count="memberCount" :assignment-count="assignmentCount"
-          :submitted-count="user ? mySubmittedCount(user.id).value : 0" :due-soon-count="dueSoonCount"
-          :upcoming-assignments="user ? upcomingAssignments(user.id).value : []"
+        <Overview v-if="activeTab === 'overview'" :classroom-id="classroomId" :member-count="memberCount"
+          :assignment-count="assignmentCount" :submitted-count="user ? mySubmittedCount(user.id).value : 0"
+          :due-soon-count="dueSoonCount" :upcoming-assignments="user ? upcomingAssignments(user.id).value : []"
           :loading="loading || membersLoading || assignmentsLoading || submissionsLoading"
           @go-tab="activeTab = $event" />
 
@@ -87,7 +99,8 @@ onMounted(loadAll)
 
         <Assignments v-else-if="activeTab === 'assignments'" :classroom-id="classroomId" :assignments="assignments"
           :assignments-loading="assignmentsLoading" :submissions-loading="submissionsLoading"
-          :my-submission-for="mySubmissionFor" :format-date="formatDate" :is-late="isLate" />
+          :my-submission-for="mySubmissionFor" :format-date="formatDate" :is-late="isLate" :quizzes="quizzes"
+          :quizzes-loading="quizzesLoading || quizSubmissionsLoading" :my-quiz-submission-for="myQuizSubmissionFor" />
       </div>
     </template>
   </div>

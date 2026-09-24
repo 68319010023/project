@@ -74,6 +74,18 @@ const router = createRouter({
             meta: { requiresAuth: true },
         },
 
+        {
+            path: '/classroom/:id/quiz/:quizId',
+            name: 'student-quiz-detail',
+            component: () => import('../views/student/QuizDetailView.vue'),
+            meta: { requiresAuth: true, role: 'student' },
+        },
+        {
+            path: '/classroom/:id/quiz/:quizId/submissions',
+            name: 'teacher-quiz-detail',
+            component: () => import('../views/teacher/QuizDetailView.vue'),
+            meta: { requiresAuth: true, role: 'teacher' },
+        },
     ],
 })
 
