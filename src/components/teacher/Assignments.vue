@@ -12,6 +12,7 @@ const props = defineProps({
   submissionsLoading: { type: Boolean, default: false },
   quizzes: { type: Array, default: () => [] },
   quizzesLoading: { type: Boolean, default: false },
+  quizSubmissions: { type: Array, default: () => [] },
   memberCount: { type: Number, default: 0 },
   getSubmissionUrl: { type: Function, required: true },
   fetchSubmissionItems: { type: Function, required: true },
@@ -35,6 +36,10 @@ const showCreateModal = ref(false)
 
 function submissionsFor(assignmentId) {
   return props.submissions.filter((s) => s.assignment_id === assignmentId)
+}
+
+function quizSubmissionsFor(quizId) {
+  return props.quizSubmissions.filter((s) => s.quiz_id === quizId)
 }
 
 async function handleCreated() {
@@ -67,8 +72,7 @@ async function handleCreated() {
       <!-- การ์ดการบ้าน -->
       <li v-for="item in combinedItems" :key="`${item.kind}-${item.id}`">
         <router-link v-if="item.kind === 'assignment'"
-          :to="{ name: 'teacher-assignment-detail', params: { id: classroomId, assignmentId: item.id } }"
-          class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
+          :to="{ name: 'teacher-assignment-detail', params: { id: classroomId, assignmentId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
                  hover:-translate-y-1 hover:shadow-offset-lg transition">
           <div class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-orange flex items-center justify-center">
             <ClipboardList :size="18" :stroke-width="2.5" class="text-dark" />
@@ -96,17 +100,22 @@ async function handleCreated() {
           </div>
         </router-link>
 
-    
-            <!-- การ์ด Quiz -->
-        <router-link v-else
-          :to="{ name: 'teacher-quiz-detail', params: { id: classroomId, quizId: item.id } }"
-          class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
+
+        <!-- การ์ด Quiz -->
+        <router-link v-else :to="{ name: 'teacher-quiz-detail', params: { id: classroomId, quizId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
                  hover:-translate-y-1 hover:shadow-offset-lg transition">
-          <div class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
+          <div
+            class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
             <FileQuestion :size="18" :stroke-width="2.5" class="text-dark" />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="font-mali font-bold text-[17px] text-dark">{{ item.title }}</p>
+            <div class="flex items-start justify-between gap-4">
+              <p class="font-mali font-bold text-[17px] text-dark">{{ item.title }}</p>
+              <span
+                class="shrink-0 border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-purple-light">
+                ส่งแล้ว {{ quizSubmissionsFor(item.id).length }}/{{ memberCount }}
+              </span>
+            </div>
             <div class="flex items-center gap-4 mt-3 flex-wrap">
               <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[12px] text-gray font-mono">
                 <Calendar :size="13" :stroke-width="2.5" />

@@ -18,6 +18,7 @@ const {
   assignments, assignmentsLoading, loadAssignments,
   submissions, submissionsLoading, loadSubmissions,
   quizzes, quizzesLoading, loadQuizzes,
+  quizSubmissions, quizSubmissionsLoading, loadQuizSubmissions,
   memberCount, assignmentCount, submittedCount, dueSoonCount,
   loadAll, fetchSubmissionItems,
   getSubmissionUrl, formatDate, isLate,
@@ -28,6 +29,7 @@ const activeTab = ref('overview')
 onMounted(async () => {
   await loadAll()
   await loadQuizzes()
+  await loadQuizSubmissions()
 })
 </script>
 
@@ -58,9 +60,10 @@ onMounted(async () => {
       <ClassroomAssignments v-else-if="activeTab === 'assignments'" :classroom-id="classroomId"
         :assignments="assignments" :assignments-loading="assignmentsLoading" :submissions="submissions"
         :submissions-loading="submissionsLoading" :quizzes="quizzes" :quizzes-loading="quizzesLoading"
-        :member-count="memberCount" :get-submission-url="getSubmissionUrl"
+        :quiz-submissions="quizSubmissions" :member-count="memberCount" :get-submission-url="getSubmissionUrl"
         :fetch-submission-items="fetchSubmissionItems" :format-date="formatDate" :is-late="isLate"
-        @reload-assignments="loadAssignments" @reload-submissions="loadSubmissions" @reload-quizzes="loadQuizzes" />
+        @reload-assignments="loadAssignments" @reload-submissions="loadSubmissions"
+        @reload-quizzes="() => { loadQuizzes(); loadQuizSubmissions() }" />
     </template>
   </div>
 </template>

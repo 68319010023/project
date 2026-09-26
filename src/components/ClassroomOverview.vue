@@ -15,7 +15,7 @@ const props = defineProps({
 const emit = defineEmits(['go-tab'])
 
 const stats = () => [
-  { key: 'assignments', label: 'การบ้านทั้งหมด', value: props.assignmentCount, icon: ClipboardList, bg: 'bg-white' },
+  { key: 'assignments', label: 'งานทั้งหมด', value: props.assignmentCount, icon: ClipboardList, bg: 'bg-white' },
   { key: 'submitted', label: props.submittedLabel, value: props.submittedCount, icon: CheckCircle2, bg: 'bg-purple-light' },
   { key: 'members', label: 'สมาชิก', value: props.memberCount, icon: Users, bg: 'bg-white' },
 ]
@@ -45,11 +45,11 @@ const stats = () => [
           งานที่ใกล้ครบกำหนด
         </h3>
 
-        <!-- เคส 1: ห้องนี้ยังไม่มีการบ้านเลยสักชิ้น -->
+        <!-- เคส 1: ห้องนี้ยังไม่มีงานเลยสักชิ้น (ทั้งการบ้านและ Quiz) -->
         <div v-if="assignmentCount === 0"
           class="border-[3px] border-dashed border-dark/30 rounded-xl p-6 text-center text-[13.5px] text-gray flex flex-col items-center gap-2">
           <ClipboardList :size="22" :stroke-width="2.5" class="text-gray-400" />
-          ครูยังไม่ได้มอบหมายการบ้านในห้องนี้
+          ครูยังไม่ได้มอบหมายงานในห้องนี้
         </div>
 
         <!-- เคส 2: มีการบ้าน แต่ทำครบ/ไม่มีงานใกล้ครบกำหนดแล้ว -->
@@ -61,8 +61,9 @@ const stats = () => [
 
         <ul v-else class="flex flex-col gap-2.5">
           <li v-for="a in upcomingAssignments" :key="a.id">
-            <router-link :to="{ name: 'student-assignment-detail', params: { id: classroomId, assignmentId: a.id } }"
-              class="flex items-center justify-between gap-3 border-[3px] border-dark rounded-xl px-4 py-3
+            <router-link :to="a.kind === 'quiz'
+              ? { name: 'student-quiz-detail', params: { id: classroomId, quizId: a.id } }
+              : { name: 'student-assignment-detail', params: { id: classroomId, assignmentId: a.id } }" class="flex items-center justify-between gap-3 border-[3px] border-dark rounded-xl px-4 py-3
              hover:-translate-y-0.5 transition" :class="a.daysLeft <= 1 ? 'bg-red-50' : 'bg-orange/10'">
               <div class="min-w-0">
                 <p class="font-semibold text-[14px] truncate">{{ a.title }}</p>

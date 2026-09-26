@@ -40,30 +40,34 @@ export function useClassroomDetail(classroomId) {
   const submissionItemsLoading = ref(true)
 
   const memberCount = computed(() => members.value.length)
-  const assignmentCount = computed(() => assignments.value.length)
+    const assignmentCount = computed(() => assignments.value.length + quizzes.value.length)
 
   const submittedCount = computed(
     () => submissions.value.filter((s) => s.submitted_at).length
   )
 
   function mySubmittedCount(studentId) {
-    return computed(
-      () =>
-        submissions.value.filter(
-          (s) => s.student_id === studentId && s.submitted_at
-        ).length
-    )
+    return computed(() => {
+      const assignmentDone = submissions.value.filter(
+        (s) => s.student_id === studentId && s.submitted_at
+      ).length
+      const quizDone = quizSubmissions.value.filter(
+        (s) => s.student_id === studentId && s.submitted_at
+      ).length
+      return assignmentDone + quizDone
+    })
   }
 
-  const dueSoonCount = computed(() => {
+   const dueSoonCount = computed(() => {
     const now = new Date()
     const limit = new Date()
     limit.setDate(limit.getDate() + 3)
-    return assignments.value.filter((a) => {
-      if (!a.due_date) return false
-      const due = new Date(a.due_date)
+    const isDueSoon = (item) => {
+      if (!item.due_date) return false
+      const due = new Date(item.due_date)
       return due >= now && due <= limit
-    }).length
+    }
+    return assignments.value.filter(isDueSoon).length + quizzes.value.filter(isDueSoon).length
   })
 
   async function loadClassroom() {
@@ -440,26 +444,37 @@ export function useClassroomDetail(classroomId) {
       const limit = new Date()
       limit.setDate(limit.getDate() + 3)
 
-      const mySubmittedIds = new Set(
+      const mySubmittedAssignmentIds = new Set(
         submissions.value
           .filter((s) => s.student_id === studentId && s.submitted_at)
           .map((s) => s.assignment_id)
       )
+      const mySubmittedQuizIds = new Set(
+        quizSubmissions.value
+          .filter((s) => s.student_id === studentId && s.submitted_at)
+          .map((s) => s.quiz_id)
+      )
 
-      return assignments.value
-        .filter((a) => {
-          if (!a.due_date) return false
-          if (mySubmittedIds.has(a.id)) return false
-          return new Date(a.due_date) <= limit
-        })
-        .map((a) => {
-          const due = new Date(a.due_date)
+      const items = [
+        ...assignments.value
+          .filter((a) => a.due_date && !mySubmittedAssignmentIds.has(a.id))
+          .map((a) => ({ id: a.id, title: a.title, due_date: a.due_date, kind: 'assignment' })),
+        ...quizzes.value
+          .filter((q) => q.due_date && !mySubmittedQuizIds.has(q.id))
+          .map((q) => ({ id: q.id, title: q.title, due_date: q.due_date, kind: 'quiz' })),
+      ]
+
+      return items
+        .filter((item) => new Date(item.due_date) <= limit)
+        .map((item) => {
+          const due = new Date(item.due_date)
           const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24))
           return {
-            id: a.id,
-            title: a.title,
-            due_date: formatDate(a.due_date),
+            id: item.id,
+            title: item.title,
+            due_date: formatDate(item.due_date),
             daysLeft,
+            kind: item.kind,
           }
         })
         .sort((a, b) => a.daysLeft - b.daysLeft)

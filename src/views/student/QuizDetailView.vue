@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Calendar, Star, FileQuestion, Send, Clock, Check } from 'lucide-vue-next'
+import { Calendar, Star, FileQuestion, Send, Clock, Check, X } from 'lucide-vue-next'
 import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
 import { useAuth } from '../../composables/useAuth.js'
 import AppNavbar from '../../components/AppNavbar.vue'
@@ -38,11 +38,19 @@ const answeredCount = computed(() => quizQuestions.value.filter(isAnswered).leng
 const unansweredCount = computed(() => totalQuestions.value - answeredCount.value)
 const showConfirm = ref(false)
 
+
+
+
 // choices อาจเป็น array ของ string หรือ array ของ object -> รองรับทั้งสองแบบ
 function choiceLabel(c) {
   if (typeof c === 'string') return c
   return c?.text ?? c?.label ?? String(c)
 }
+// ดึงคำตอบที่ตอบไปแล้ว (พร้อม is_correct/points_awarded) ของคำถามข้อนี้ จาก submission ที่ส่งไปแล้ว
+function answerFor(questionId) {
+  return (myQuizSubmission.value?.answers || []).find((a) => a.question_id === questionId) ?? null
+}
+
 
 // ⚠️ จุดเดียวที่กำหนดรูปแบบ p_answers ที่ส่งให้ submit_quiz
 // ต้องตรงกับที่ฟังก์ชันใน Supabase อ่าน ถ้าไม่ตรงให้แก้ที่นี่ที่เดียว
@@ -54,7 +62,7 @@ function buildAnswers() {
       answer: q.type === 'essay' ? (v ?? '').trim() : (v ?? null),
     }
   })
-}   
+}
 
 // กดปุ่ม "ส่งข้อสอบ" -> แค่เปิด modal ยืนยัน
 function handleSubmit() {
@@ -81,6 +89,8 @@ async function confirmSubmit() {
     if (error.code === '23505') {
       submitError.value = 'คุณส่งข้อสอบนี้ไปแล้ว'
       await loadMyQuizSubmission(quizId, user.value.id)
+    } else if (error.message?.includes('เลยกำหนดส่ง')) {
+      submitError.value = 'เลยกำหนดส่งแบบทดสอบนี้แล้ว ไม่สามารถส่งได้'
     } else {
       submitError.value = error.message || 'ส่งข้อสอบไม่สำเร็จ ลองใหม่อีกครั้ง'
     }
@@ -98,8 +108,8 @@ onMounted(async () => {
     loadMyQuizSubmission(quizId, user.value.id),
   ])
 
-  // โหลดคำถามเฉพาะตอนที่ยังไม่เคยส่ง
-  if (quizDetail.value && !myQuizSubmission.value) {
+  // โหลดคำถามเสมอ — ใช้ทั้งตอนทำข้อสอบ และตอนแสดงผลรายข้อหลังส่งแล้ว
+  if (quizDetail.value) {
     await loadQuizQuestions(quizId)
   }
 })
@@ -131,7 +141,8 @@ onMounted(async () => {
       <!-- หัวข้อ Quiz -->
       <div class="bg-white border-3 border-dark rounded-xl shadow-offset p-6">
         <div class="flex items-start gap-3">
-          <div class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
+          <div
+            class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
             <FileQuestion :size="18" :stroke-width="2.5" class="text-dark" />
           </div>
           <div class="min-w-0">
@@ -185,7 +196,8 @@ onMounted(async () => {
           class="rounded-xl border-2 border-gray-200 bg-gray-light/60 p-4 flex items-center gap-2">
           <Star :size="18" :stroke-width="2.5" class="text-green-dark" />
           <span class="font-mali font-bold text-2xl text-dark">
-            {{ myQuizSubmission.score }}<span class="text-[15px] text-gray-400 font-normal">/{{ quizDetail.max_score }}</span>
+            {{ myQuizSubmission.score }}<span class="text-[15px] text-gray-400 font-normal">/{{ quizDetail.max_score
+            }}</span>
           </span>
         </div>
 
@@ -194,6 +206,44 @@ onMounted(async () => {
           <p class="text-[13px] text-dark leading-relaxed">
             ข้อสอบนี้มีข้ออัตนัย คะแนนจะแสดงหลังครูตรวจครบทุกข้อ
           </p>
+        </div>
+
+        <!-- รายละเอียดคะแนนแต่ละข้อ -->
+        <div v-if="quizQuestionsLoading" class="text-center text-gray-400 text-[13px] py-4">
+          กำลังโหลดรายละเอียด...
+        </div>
+        <div v-else class="flex flex-col gap-3">
+          <div v-for="(q, index) in quizQuestions" :key="q.id" class="border-2 border-gray-200 rounded-lg p-3">
+            <div class="flex items-start justify-between gap-3">
+              <p class="font-semibold text-[13.5px] text-dark whitespace-pre-wrap">
+                {{ index + 1 }}. {{ q.question }}
+              </p>
+              <span class="shrink-0 font-mono text-[11px] text-gray-400">
+                {{ answerFor(q.id)?.points_awarded ?? 0 }}/{{ q.points }} คะแนน
+              </span>
+            </div>
+
+            <!-- ปรนัย: บอกแค่ถูก/ผิด ไม่โชว์เฉลย -->
+            <template v-if="q.type === 'mc'">
+              <p class="text-[13px] mt-2 flex items-center gap-1.5"
+                :class="answerFor(q.id)?.is_correct ? 'text-green-dark' : 'text-red-600'">
+                <Check v-if="answerFor(q.id)?.is_correct" :size="14" :stroke-width="3" />
+                <X v-else :size="14" :stroke-width="3" />
+                คำตอบของคุณ: {{ answerFor(q.id)?.answer || '(ไม่ได้ตอบ)' }}
+              </p>
+            </template>
+
+            <!-- อัตนัย -->
+            <template v-else>
+              <p class="text-[13px] text-dark mt-2 whitespace-pre-wrap bg-gray-light/60 rounded-lg p-2.5">
+                {{ answerFor(q.id)?.answer || '(ไม่ได้ตอบ)' }}
+              </p>
+              <p v-if="answerFor(q.id)?.points_awarded === null || answerFor(q.id)?.points_awarded === undefined"
+                class="text-[12px] text-purple mt-1.5 font-semibold">
+                รอครูตรวจข้อนี้
+              </p>
+            </template>
+          </div>
         </div>
 
         <p v-if="myQuizSubmission.submitted_at" class="text-[12px] text-gray-400 font-mono">
@@ -241,8 +291,7 @@ onMounted(async () => {
                 <input type="radio" class="sr-only peer" :name="`q-${q.id}`" :value="ci" v-model="answers[q.id]" />
                 <div
                   class="flex items-center gap-3 border-2 border-dark rounded-lg px-4 py-2.5 text-[14px] text-dark transition hover:bg-gray-light peer-checked:bg-purple-light peer-focus-visible:ring-2 peer-focus-visible:ring-dark">
-                  <span
-                    class="w-4 h-4 shrink-0 rounded-full border-2 border-dark flex items-center justify-center"
+                  <span class="w-4 h-4 shrink-0 rounded-full border-2 border-dark flex items-center justify-center"
                     :class="answers[q.id] === ci ? 'bg-dark' : 'bg-white'">
                     <Check v-if="answers[q.id] === ci" :size="10" :stroke-width="3.5" class="text-white" />
                   </span>
@@ -273,7 +322,7 @@ onMounted(async () => {
           </div>
         </template>
       </template>
-      </main>
+    </main>
 
     <!-- Modal ยืนยันการส่ง -->
     <Teleport to="body">
