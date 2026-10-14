@@ -128,65 +128,64 @@ onUnmounted(() => {
             </Transition>
         </div>
         <!-- ========== 2. HERO (เล็ก) ========== -->
-        <section v-reveal class="max-w-[1100px] mx-auto px-6 pt-14 pb-10 text-center">
-            <span
-                class="inline-block font-mono text-[11.5px] font-bold bg-purple-light border-2 border-dark px-3.5 py-1.5 rounded-full mb-4">
-                โครงงาน ปวส
-            </span>
-            <h1 class="text-outline text-[clamp(28px,4.5vw,42px)] leading-tight">
-                ห้องเรียนที่ไม่ทิ้งใครไว้ข้างหลัง<br />แม้เรียนออนไลน์
-            </h1>
-            <p class="text-gray text-[15.5px] max-w-[520px] mx-auto mt-4 leading-loose">
-                ระบบจัดการห้องเรียนที่มี AI ช่วยดูแลนักเรียนเป็นรายคน ไม่ใช่แค่ส่งการบ้านแล้วจบ
-            </p>
-            <div class="flex gap-3 justify-center mt-6 flex-wrap">
-                <router-link to="/register"
-                    class="px-[26px] py-3 rounded-[10px] border-2 border-dark bg-orange text-dark text-[14.5px] font-semibold shadow-offset-sm hover:-translate-y-0.5 hover:shadow-offset-sm-hover transition">เริ่มใช้งานฟรี</router-link>
-                <a href="#problem"
-                    class="px-[26px] py-3 rounded-[10px] border-2 border-dark bg-white text-dark text-[14.5px] font-semibold shadow-offset-sm hover:-translate-y-0.5 hover:shadow-offset-sm-hover transition">ดูรายละเอียดโครงงาน</a>
+        <section v-reveal class="bg-[url('/img/bg.png')] bg-cover bg-center bg-no-repeat">
+            <div class="max-w-[1100px] mx-auto px-4 sm:px-6 pt-20 pb-20 text-center">
+
+                <h1 class="text-outline  text-[clamp(28px,4.5vw,42px)] leading-tight ">
+                    ห้องเรียนที่ไม่ทิ้งใครไว้ข้างหลัง<br />แม้เรียนออนไลน์
+                </h1>
+                <p class="text-gray text-[15.5px] max-w-[530px] mx-auto mt-4 leading-loose">
+                    ระบบจัดการห้องเรียนที่มี AI ช่วยดูแลนักเรียนเป็นรายคน ไม่ใช่แค่ส่งการบ้านแล้วจบ
+                </p>
+                <div class="flex gap-3 justify-center mt-6 flex-wrap">
+                    <router-link to="/register"
+                        class="px-[26px] py-3 rounded-[10px] border-2 border-dark bg-orange text-dark text-[14.5px] font-semibold shadow-offset-sm hover:-translate-y-0.5 hover:shadow-offset-sm-hover transition">เริ่มใช้งาน</router-link>
+                    <a href="#problem"
+                        class="px-[26px] py-3 rounded-[10px] border-2 border-dark bg-white text-dark text-[14.5px] font-semibold shadow-offset-sm hover:-translate-y-0.5 hover:shadow-offset-sm-hover transition">ดูรายละเอียด</a>
+                </div>
+
+                <!-- STATS -->
+                <div class="grid grid-cols-3 gap-2 sm:gap-4 mt-10">
+
+                    <div
+                        class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
+                        <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
+                            {{ studentCount === null ? '...' : studentCount }}
+                        </div>
+                        <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
+                            <span class="sm:hidden">นักศึกษา</span>
+                            <span class="hidden sm:inline">นักศึกษาเข้าใช้งานทั้งหมด</span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
+                        <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
+                            {{ teacherCount === null ? '...' : teacherCount }}
+                        </div>
+                        <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
+                            <span class="sm:hidden">ครู</span>
+                            <span class="hidden sm:inline">ครูที่เข้าใช้งานทั้งหมด</span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
+                        <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
+                            {{ totalCount === null ? '...' : totalCount }}
+                        </div>
+                        <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
+                            <span class="sm:hidden">ผู้ใช้งานรวม</span>
+                            <span class="hidden sm:inline">ผู้ใช้งานรวมทั้งหมด</span>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </section>
 
 
-        <!-- ========== 3. STATS BAR ========== -->
-        <section v-reveal class="max-w-[1100px] mx-auto px-4 sm:px-6 pb-14">
-            <div class="grid grid-cols-3 gap-2 sm:gap-4">
-
-                <div
-                    class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
-                    <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
-                        {{ studentCount === null ? '...' : studentCount }}
-                    </div>
-                    <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
-                        <span class="sm:hidden">นักศึกษา</span>
-                        <span class="hidden sm:inline">นักศึกษาเข้าใช้งานทั้งหมด</span>
-                    </div>
-                </div>
-
-                <div
-                    class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
-                    <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
-                        {{ teacherCount === null ? '...' : teacherCount }}
-                    </div>
-                    <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
-                        <span class="sm:hidden">ครู</span>
-                        <span class="hidden sm:inline">ครูที่เข้าใช้งานทั้งหมด</span>
-                    </div>
-                </div>
-
-                <div
-                    class="bg-white border-2 sm:border-3 border-dark rounded-[10px] sm:rounded-[14px] px-2 py-3 sm:px-4 sm:py-5 text-center shadow-offset-sm">
-                    <div class="font-mali font-bold text-xl sm:text-3xl text-purple">
-                        {{ totalCount === null ? '...' : totalCount }}
-                    </div>
-                    <div class="text-[10px] sm:text-[12.5px] text-gray mt-1 sm:mt-1.5 leading-tight">
-                        <span class="sm:hidden">ผู้ใช้งานรวม</span>
-                        <span class="hidden sm:inline">ผู้ใช้งานรวมทั้งหมด</span>
-                    </div>
-                </div>
-
-            </div>
-        </section>
+     
 
         <!-- ========== 4. ปัญหา ========== -->
         <section id="problem" v-reveal class="scroll-mt-[88px]  max-w-[1100px] mx-6 xl:mx-auto px-6 py-16">
