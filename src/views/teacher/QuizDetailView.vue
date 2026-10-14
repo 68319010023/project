@@ -94,8 +94,18 @@ async function loadSubmissions() {
 }
 
 // --- ตรวจข้ออัตนัย ---
-// grading[sub.id] = { open, points: { [question_id]: number|null }, saving, error }
 const grading = reactive({})
+const modalSub = ref(null)
+
+function openModal(sub) {
+  modalSub.value = sub
+  if (!grading[sub.id]) openGrading(sub)
+}
+
+function closeModal() {
+  if (modalSub.value && grading[modalSub.value.id]?.saving) return // กันปิดระหว่างบันทึก
+  modalSub.value = null
+}
 
 function openGrading(sub) {
   const points = {}
@@ -170,19 +180,18 @@ onMounted(async () => {
 
 <template>
   <div class="bg-gray-light min-h-screen font-mitr">
-    <AppNavbar :show-search="false"
-        :breadcrumb="[
-            { label: 'หน้ารวมห้องเรียน', to: '/teacher' },
-            { label: quizDetail?.classrooms?.name ?? '...', to: `/classroom/${classroomId}` },
-            { label: quizDetail?.title ?? '...' }
-        ]" />
+    <AppNavbar :show-search="false" :breadcrumb="[
+      { label: 'หน้ารวมห้องเรียน', to: '/teacher' },
+      { label: quizDetail?.classrooms?.name ?? '...', to: `/classroom/${classroomId}` },
+      { label: quizDetail?.title ?? '...' }
+    ]" />
 
     <div class="max-w-[1000px] mx-auto px-6 py-8">
-      <button type="button" @click="router.back()"
-              class="inline-flex items-center gap-1.5 text-[13px] text-gray font-semibold hover:text-dark transition mb-4">
+      <router-link :to="{ name: 'classroom-detail', params: { id: classroomId }, query: { tab: 'assignments' } }"
+        class="inline-flex items-center gap-1.5 text-[13px] text-gray font-semibold hover:text-dark transition mb-4">
         <ArrowLeft :size="15" :stroke-width="2.5" />
         กลับไปหน้าห้องเรียน
-      </button>
+      </router-link>
 
       <div v-if="quizDetailLoading" class="h-[140px] border-3 border-dark rounded-2xl bg-gray-light animate-pulse" />
 
@@ -190,7 +199,8 @@ onMounted(async () => {
         <!-- หัวข้อ Quiz -->
         <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-6 mb-6">
           <div class="flex items-start gap-3">
-            <div class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
+            <div
+              class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
               <FileQuestion :size="18" :stroke-width="2.5" class="text-dark" />
             </div>
             <div class="min-w-0">
@@ -221,49 +231,81 @@ onMounted(async () => {
         </div>
 
         <p v-else-if="submissions.length === 0"
-           class="bg-white border-3 border-dashed border-dark/30 rounded-2xl p-8 text-center text-gray text-[13.5px]">
+          class="bg-white border-3 border-dashed border-dark/30 rounded-2xl p-8 text-center text-gray text-[13.5px]">
           ยังไม่มีใครส่งแบบทดสอบนี้
         </p>
 
-        <div v-else class="flex flex-col gap-4">
-          <div v-for="sub in submissions" :key="sub.id"
-               class="bg-white border-3 border-dark rounded-xl shadow-offset p-4">
-            <!-- โปรไฟล์นักเรียน -->
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light
-                          flex items-center justify-center font-mali font-bold text-[13px]">
-                <img v-if="sub.profiles?.img" :src="sub.profiles.img" class="w-full h-full object-cover" alt="นักเรียน" />
+        <div v-else class="flex flex-wrap gap-3">
+          <button type="button" v-for="sub in submissions" :key="sub.id" @click="openModal(sub)" class="w-[250px] bg-white border-2 border-dark rounded-xl shadow-offset overflow-hidden transition
+                     hover:-translate-y-1 hover:shadow-offset-lg text-left">
+            <div class="flex items-center gap-2.5 px-3.5 py-3">
+              <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light
+                          flex items-center justify-center font-mali font-bold text-[12px]">
+                <img v-if="sub.profiles?.img" :src="sub.profiles.img" class="w-full h-full object-cover"
+                  alt="นักเรียน" />
                 <span v-else>{{ (sub.profiles?.name?.[0] ?? '') + (sub.profiles?.lastname?.[0] ?? '') }}</span>
               </div>
+
               <div class="min-w-0 flex-1">
-                <p class="font-semibold text-[14px] truncate">{{ sub.profiles?.name }} {{ sub.profiles?.lastname }}</p>
-                <p class="text-[11.5px] text-gray">{{ formatDate(sub.submitted_at) }}</p>
+                <p class="font-semibold text-[13.5px] truncate">
+                  {{ sub.profiles?.name }} {{ sub.profiles?.lastname }}
+                </p>
+                <p v-if="isLate(quizDetail.due_date, sub.submitted_at)" class="text-[10px] font-bold text-red-600">
+                  ส่งล่าช้า
+                </p>
+                <p v-else class="text-[10.5px] text-gray truncate">
+                  {{ formatDate(sub.submitted_at) }}
+                </p>
               </div>
-              <span v-if="isLate(quizDetail.due_date, sub.submitted_at)"
-                    class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[10px] font-bold bg-red-100 text-red-600">
-                ส่งล่าช้า
+
+              <span v-if="sub.is_graded"
+                class="shrink-0 inline-flex items-center gap-0.5 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[10px] font-bold bg-green-100 text-green-dark">
+                <Check :size="10" :stroke-width="3" />
+                {{ sub.score }}/{{ quizDetail.max_score }}
+              </span>
+              <span v-else
+                class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[10px] font-bold bg-orange text-dark">
+                เหลือ {{ ungradedEssayCount(sub) }} ข้อ
               </span>
             </div>
+          </button>
+        </div>
+      </template>
+    </div>
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="modalSub" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          @click.self="closeModal">
+          <div role="dialog" aria-modal="true"
+            class="modal-card w-full max-w-lg bg-white border-3 border-dark rounded-2xl shadow-offset p-6 flex flex-col gap-4 max-h-[85vh] overflow-y-auto">
 
-            <!-- สถานะ / คะแนนรวม -->
-            <div class="mt-3 pt-3 border-t-2 border-dashed border-gray-200 flex items-center justify-between gap-2">
-              <p v-if="sub.is_graded" class="inline-flex items-center gap-1.5 text-[13px] font-bold text-green-dark">
+            <!-- หัว: โปรไฟล์นักเรียน -->
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light
+                          flex items-center justify-center font-mali font-bold text-[14px]">
+                <img v-if="modalSub.profiles?.img" :src="modalSub.profiles.img" class="w-full h-full object-cover"
+                  alt="นักเรียน" />
+                <span v-else>{{ (modalSub.profiles?.name?.[0] ?? '') + (modalSub.profiles?.lastname?.[0] ?? '')
+                  }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="font-mali font-bold text-[16px] truncate">{{ modalSub.profiles?.name }} {{
+                  modalSub.profiles?.lastname }}</p>
+                <p class="text-[11.5px]"
+                  :class="isLate(quizDetail.due_date, modalSub.submitted_at) ? 'text-red-600 font-bold' : 'text-gray'">
+                  {{ isLate(quizDetail.due_date, modalSub.submitted_at) ? 'ส่งล่าช้า — ' : '' }}{{
+                    formatDate(modalSub.submitted_at) }}
+                </p>
+              </div>
+              <p v-if="modalSub.is_graded"
+                class="shrink-0 inline-flex items-center gap-1.5 text-[13px] font-bold text-green-dark">
                 <Check :size="14" :stroke-width="3" />
-                {{ sub.score }} / {{ quizDetail.max_score }} คะแนน
+                {{ modalSub.score }}/{{ quizDetail.max_score }}
               </p>
-              <p v-else class="text-[12.5px] text-gray">
-                เหลือ {{ ungradedEssayCount(sub) }} ข้ออัตนัยที่ยังไม่ได้ตรวจ
-              </p>
-
-              <button v-if="!grading[sub.id]?.open" type="button" @click="openGrading(sub)"
-                      class="shrink-0 inline-flex items-center gap-1 text-[11.5px] font-semibold text-purple hover:text-dark transition">
-                <Pencil :size="12" :stroke-width="2.5" />
-                {{ sub.is_graded ? 'แก้ไขคะแนน' : 'ตรวจข้อสอบ' }}
-              </button>
             </div>
 
-            <!-- รายละเอียดคำถาม + ฟอร์มตรวจ -->
-            <div v-if="grading[sub.id]?.open" class="mt-3 pt-3 border-t-2 border-dashed border-gray-200 flex flex-col gap-3">
+            <!-- คำถามทั้งหมด -->
+            <div class="pt-3 border-t-2 border-dashed border-gray-200 flex flex-col gap-3">
               <div v-for="(q, index) in questions" :key="q.id" class="border-2 border-gray-200 rounded-lg p-3">
                 <div class="flex items-start justify-between gap-3">
                   <p class="font-semibold text-[13.5px] text-dark whitespace-pre-wrap">
@@ -272,51 +314,51 @@ onMounted(async () => {
                   <span class="shrink-0 font-mono text-[11px] text-gray">{{ q.points }} คะแนน</span>
                 </div>
 
-                <!-- ปรนัย: แสดงคำตอบ+เฉลย อ่านอย่างเดียว -->
+                <!-- ปรนัย: อ่านอย่างเดียว -->
                 <template v-if="q.type === 'mc'">
                   <p class="text-[13px] mt-2 flex items-center gap-1.5"
-                     :class="answerFor(sub, q.id)?.is_correct ? 'text-green-dark' : 'text-red-600'">
-                    <Check v-if="answerFor(sub, q.id)?.is_correct" :size="14" :stroke-width="3" />
+                    :class="answerFor(modalSub, q.id)?.is_correct ? 'text-green-dark' : 'text-red-600'">
+                    <Check v-if="answerFor(modalSub, q.id)?.is_correct" :size="14" :stroke-width="3" />
                     <X v-else :size="14" :stroke-width="3" />
-                    ตอบ: {{ answerFor(sub, q.id)?.answer || '(ไม่ได้ตอบ)' }}
+                    ตอบ: {{ answerFor(modalSub, q.id)?.answer || '(ไม่ได้ตอบ)' }}
                   </p>
-                  <p v-if="!answerFor(sub, q.id)?.is_correct" class="text-[12px] text-gray mt-1">
+                  <p v-if="!answerFor(modalSub, q.id)?.is_correct" class="text-[12px] text-gray mt-1">
                     เฉลย: {{ q.correct_answer }}
                   </p>
                 </template>
 
-                <!-- อัตนัย: แสดงคำตอบ + ช่องกรอกคะแนน -->
+                <!-- อัตนัย: คำตอบ + ช่องกรอกคะแนน -->
                 <template v-else>
                   <p class="text-[13px] text-dark mt-2 whitespace-pre-wrap bg-gray-light/60 rounded-lg p-2.5">
-                    {{ answerFor(sub, q.id)?.answer || '(ไม่ได้ตอบ)' }}
+                    {{ answerFor(modalSub, q.id)?.answer || '(ไม่ได้ตอบ)' }}
                   </p>
                   <div class="flex items-center gap-2 mt-2">
                     <label class="text-[12px] font-semibold text-gray">ให้คะแนน</label>
-                    <input type="number" v-model="grading[sub.id].points[q.id]" min="0" :max="q.points"
-                           class="w-20 border-2 border-dark rounded-lg px-2 py-1 text-[13px] font-mono font-bold" />
+                    <input type="number" v-model="grading[modalSub.id].points[q.id]" min="0" :max="q.points"
+                      class="w-20 border-2 border-dark rounded-lg px-2 py-1 text-[13px] font-mono font-bold" />
                     <span class="text-[12px] text-gray">/ {{ q.points }}</span>
                   </div>
                 </template>
               </div>
+            </div>
 
-              <p v-if="grading[sub.id].error" class="text-[11.5px] text-red font-semibold">
-                {{ grading[sub.id].error }}
-              </p>
+            <p v-if="grading[modalSub.id]?.error" class="text-[11.5px] text-red font-semibold">
+              {{ grading[modalSub.id].error }}
+            </p>
 
-              <div class="flex items-center gap-2">
-                <button type="button" @click="saveGrading(sub)" :disabled="grading[sub.id].saving"
-                        class="flex-1 border-2 border-dark rounded-lg py-1.5 text-[12.5px] font-bold bg-purple text-white hover:opacity-90 transition disabled:opacity-50">
-                  {{ grading[sub.id].saving ? 'กำลังบันทึก...' : 'บันทึกคะแนน' }}
-                </button>
-                <button type="button" @click="cancelGrading(sub.id)" :disabled="grading[sub.id].saving"
-                        class="border-2 border-dark rounded-lg px-3 py-1.5 text-[12.5px] font-semibold hover:bg-gray-light transition disabled:opacity-50">
-                  ยกเลิก
-                </button>
-              </div>
+            <div class="flex items-center gap-2">
+              <button type="button" @click="saveGrading(modalSub)" :disabled="grading[modalSub.id]?.saving"
+                class="flex-1 border-2 border-dark rounded-lg py-1.5 text-[12.5px] font-bold bg-purple hover:opacity-90 transition disabled:opacity-50">
+                {{ grading[modalSub.id]?.saving ? 'กำลังบันทึก...' : 'บันทึกคะแนน' }}
+              </button>
+              <button type="button" @click="closeModal"
+                class="border-2 border-dark rounded-lg px-4 py-1.5 text-[12.5px] font-semibold hover:bg-gray-light transition">
+                ปิด
+              </button>
             </div>
           </div>
         </div>
-      </template>
-    </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase.js'
 import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
 import AppNavbar from '../../components/AppNavbar.vue'
-import { ArrowLeft, Calendar, Star, Paperclip, Link2, ExternalLink, Check, Pencil } from 'lucide-vue-next'
+import { ArrowLeft, Calendar, Star, Paperclip, Link2, ExternalLink, Check, Pencil, ChevronDown } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,19 +31,25 @@ async function openAttachment() {
     alert('เปิดไฟล์แนบไม่สำเร็จ ลองใหม่อีกครั้ง')
   }
 }
-// รายชื่อนักเรียนที่ส่งงานชิ้นนี้ (parent row) — โหลดแยกจาก useClassroomDetail
-// เพราะหน้านี้สนใจแค่ submission ของ assignment เดียว ไม่ใช่ทั้งห้อง
+
 const submissions = ref([])
 const submissionsLoading = ref(true)
-
-// ไฟล์/ลิงก์ต่อ submission — โหลดขนานทีเดียวตอนเปิดหน้า (ไม่ lazy โหลดทีละคนเหมือนฝั่ง list เดิม
-// เพราะหน้านี้คือหน้าเดี่ยวของการบ้านชิ้นเดียว ไม่ต้องกลัวยิง query เยอะเกินเหมือนตอนอยู่ในลิสต์รวม)
 const itemsBySubmission = reactive({})
 const itemsLoading = ref(true)
 
 // --- ให้คะแนน + feedback ---
-// grading[sub.id] = { open, score, feedback, saving, error }
+
 const grading = reactive({})
+const modalSub = ref(null)
+
+function openModal(sub) {
+  modalSub.value = sub
+}
+
+function closeModal() {
+  if (modalSub.value && grading[modalSub.value.id]?.saving) return // กันปิดระหว่างบันทึก
+  modalSub.value = null
+}
 
 function openGrading(sub) {
   grading[sub.id] = {
@@ -92,9 +98,14 @@ async function saveGrading(sub) {
   }
 
   // อัปเดตข้อมูลในการ์ดทันทีโดยไม่ต้อง reload ทั้งหน้า
+  // อัปเดตข้อมูลในการ์ดทันทีโดยไม่ต้อง reload ทั้งหน้า
   sub.score = scoreNum
   sub.feedback = g.feedback?.trim() || null
   g.open = false
+}
+
+function openGradingAndKeepModal(sub) {
+  openGrading(sub)
 }
 
 async function loadSubmissions() {
@@ -161,11 +172,11 @@ onMounted(async () => {
     ]" />
 
     <div class="max-w-[1000px] mx-auto px-6 py-8">
-      <button type="button" @click="router.back()"
+      <router-link :to="{ name: 'classroom-detail', params: { id: classroomId }, query: { tab: 'assignments' } }"
         class="inline-flex items-center gap-1.5 text-[13px] text-gray font-semibold hover:text-dark transition mb-4">
         <ArrowLeft :size="15" :stroke-width="2.5" />
         กลับไปหน้าห้องเรียน
-      </button>
+      </router-link>
 
       <div v-if="assignmentDetailLoading"
         class="h-[140px] border-3 border-dark rounded-2xl bg-gray-light animate-pulse" />
@@ -218,36 +229,82 @@ onMounted(async () => {
           class="bg-white border-3 border-dashed border-dark/30 rounded-2xl p-8 text-center text-gray text-[13.5px]">
           ยังไม่มีใครส่งการบ้านชิ้นนี้
         </p>
-
-        <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div v-for="sub in submissions" :key="sub.id"
-            class="bg-white border-3 border-dark rounded-xl shadow-offset p-4">
-            <!-- โปรไฟล์นักเรียน -->
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light
-                          flex items-center justify-center font-mali font-bold text-[13px]">
+        <div v-else class="flex flex-wrap gap-3">
+          <button type="button" v-for="sub in submissions" :key="sub.id" @click="openModal(sub)" class="w-[250px] bg-white border-2 border-dark rounded-xl shadow-offset overflow-hidden transition
+                     hover:-translate-y-1 hover:shadow-offset-lg text-left">
+            <div class="flex items-center gap-2.5 px-3.5 py-3">
+              <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light
+                          flex items-center justify-center font-mali font-bold text-[12px]">
                 <img v-if="sub.profiles?.img" :src="sub.profiles.img" class="w-full h-full object-cover"
                   alt="นักเรียน" />
                 <span v-else>{{ (sub.profiles?.name?.[0] ?? '') + (sub.profiles?.lastname?.[0] ?? '') }}</span>
               </div>
+
               <div class="min-w-0 flex-1">
-                <p class="font-semibold text-[14px] truncate">{{ sub.profiles?.name }} {{ sub.profiles?.lastname }}</p>
-                <p class="text-[11.5px] text-gray">{{ formatDate(sub.submitted_at) }}</p>
+                <p class="font-semibold text-[13.5px] truncate">
+                  {{ sub.profiles?.name }} {{ sub.profiles?.lastname }}
+                </p>
+                <p v-if="isLate(assignmentDetail.due_date, sub.submitted_at)"
+                  class="text-[10px] font-bold text-red-600">
+                  ส่งล่าช้า
+                </p>
+                <p v-else class="text-[10.5px] text-gray truncate">
+                  {{ formatDate(sub.submitted_at) }}
+                </p>
               </div>
-              <span v-if="isLate(assignmentDetail.due_date, sub.submitted_at)"
-                class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[10px] font-bold bg-red-100 text-red-600">
-                ส่งล่าช้า
+
+              <span v-if="sub.score !== null && sub.score !== undefined"
+                class="shrink-0 inline-flex items-center gap-0.5 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[10px] font-bold bg-green-100 text-green-dark">
+                <Check :size="10" :stroke-width="3" />
+                {{ sub.score }}/{{ assignmentDetail.max_score }}
               </span>
+              <span v-else
+                class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[10px] font-bold bg-orange text-dark">
+                รอตรวจ
+              </span>
+            </div>
+          </button>
+        </div>
+      </template>
+    </div>
+
+    <!-- Modal รายละเอียดการส่งงาน + ให้คะแนน -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="modalSub" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          @click.self="closeModal">
+          <div role="dialog" aria-modal="true"
+            class="modal-card w-full max-w-md bg-white border-3 border-dark rounded-2xl shadow-offset p-6 flex flex-col gap-4 max-h-[85vh] overflow-y-auto">
+
+            <!-- หัว: โปรไฟล์นักเรียน -->
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light
+                          flex items-center justify-center font-mali font-bold text-[14px]">
+                <img v-if="modalSub.profiles?.img" :src="modalSub.profiles.img" class="w-full h-full object-cover"
+                  alt="นักเรียน" />
+                <span v-else>{{ (modalSub.profiles?.name?.[0] ?? '') + (modalSub.profiles?.lastname?.[0] ?? '')
+                }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="font-mali font-bold text-[16px] truncate">{{ modalSub.profiles?.name }} {{
+                  modalSub.profiles?.lastname }}</p>
+                <p class="text-[11.5px]"
+                  :class="isLate(assignmentDetail.due_date, modalSub.submitted_at) ? 'text-red-600 font-bold' : 'text-gray'">
+                  {{ isLate(assignmentDetail.due_date, modalSub.submitted_at) ? 'ส่งล่าช้า — ' : '' }}{{
+                    formatDate(modalSub.submitted_at) }}
+                </p>
+              </div>
             </div>
 
             <!-- ไฟล์แนบ / ลิงก์ -->
-            <div class="mt-3 pt-3 border-t-2 border-dashed border-gray-200">
+            <div class="pt-3 border-t-2 border-dashed border-gray-200">
+              <p class="text-[11px] font-bold text-gray font-mono uppercase mb-2">ไฟล์ที่ส่ง</p>
               <p v-if="itemsLoading" class="text-gray text-[12px]">กำลังโหลดไฟล์...</p>
-              <p v-else-if="(itemsBySubmission[sub.id] || []).length === 0" class="text-gray text-[12px]">
+              <p v-else-if="(itemsBySubmission[modalSub.id] || []).length === 0" class="text-gray text-[12px]">
                 ไม่พบไฟล์ที่ส่ง
               </p>
               <ul v-else class="flex flex-col gap-1.5">
-                <li v-for="item in itemsBySubmission[sub.id]" :key="item.id">
+                <li v-for="item in itemsBySubmission[modalSub.id]" :key="item.id">
                   <button type="button" @click="openItem(item)"
                     class="w-full flex items-center gap-2 border-2 border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-light/60 transition">
                     <Link2 v-if="item.type === 'link'" :size="13" :stroke-width="2.5" class="shrink-0 text-purple" />
@@ -260,60 +317,65 @@ onMounted(async () => {
             </div>
 
             <!-- ให้คะแนน + feedback -->
-            <div class="mt-3 pt-3 border-t-2 border-dashed border-gray-200">
-              <!-- โหมดแสดงผล (ยังไม่เปิดฟอร์ม) -->
-              <template v-if="!grading[sub.id]?.open">
-                <div v-if="sub.score !== null && sub.score !== undefined"
+            <div class="pt-3 border-t-2 border-dashed border-gray-200">
+              <template v-if="!grading[modalSub.id]?.open">
+                <div v-if="modalSub.score !== null && modalSub.score !== undefined"
                   class="flex items-start justify-between gap-2">
                   <div class="min-w-0 flex-1">
-                    <p class="inline-flex items-center gap-1.5 text-[13px] font-bold text-green-dark">
-                      <Check :size="14" :stroke-width="3" />
-                      {{ sub.score }} / {{ assignmentDetail.max_score }} คะแนน
+                    <p class="inline-flex items-center gap-1.5 text-[14px] font-bold text-green-dark">
+                      <Check :size="15" :stroke-width="3" />
+                      {{ modalSub.score }} / {{ assignmentDetail.max_score }} คะแนน
                     </p>
-                    <p v-if="sub.feedback" class="text-[12px] text-gray mt-1 leading-relaxed whitespace-pre-line">
-                      {{ sub.feedback }}
+                    <p v-if="modalSub.feedback"
+                      class="text-[12.5px] text-gray mt-1 leading-relaxed whitespace-pre-line">
+                      {{ modalSub.feedback }}
                     </p>
                   </div>
-                  <button type="button" @click="openGrading(sub)"
-                    class="shrink-0 inline-flex items-center gap-1 text-[11.5px] font-semibold text-purple hover:text-dark transition">
-                    <Pencil :size="12" :stroke-width="2.5" />
+                  <button type="button" @click="openGrading(modalSub)"
+                    class="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-purple hover:text-dark transition">
+                    <Pencil :size="13" :stroke-width="2.5" />
                     แก้ไข
                   </button>
                 </div>
-                <button v-else type="button" @click="openGrading(sub)"
-                  class="w-full border-2 border-dark rounded-lg py-2 text-[13px] font-bold bg-orange text-white hover:opacity-90 transition">
+                <button v-else type="button" @click="openGrading(modalSub)"
+                  class="w-full border-2 border-dark rounded-lg py-2.5 text-[13.5px] font-bold bg-orange  hover:opacity-90 transition">
                   ให้คะแนน
                 </button>
               </template>
 
-              <!-- ฟอร์มให้คะแนน -->
               <div v-else class="flex flex-col gap-2">
                 <div class="flex items-center gap-2">
-                  <input type="number" v-model="grading[sub.id].score" min="0" :max="assignmentDetail.max_score"
+                  <input type="number" v-model="grading[modalSub.id].score" min="0" :max="assignmentDetail.max_score"
                     placeholder="คะแนน"
                     class="w-24 border-2 border-dark rounded-lg px-2 py-1.5 text-[13px] font-mono font-bold" />
                   <span class="text-[12px] text-gray">/ {{ assignmentDetail.max_score }}</span>
                 </div>
-                <textarea v-model="grading[sub.id].feedback" rows="2" placeholder="feedback ให้นักเรียน (ไม่บังคับ)"
+                <textarea v-model="grading[modalSub.id].feedback" rows="3"
+                  placeholder="feedback ให้นักเรียน (ไม่บังคับ)"
                   class="w-full border-2 border-dark rounded-lg px-2.5 py-1.5 text-[12.5px] resize-none" />
-                <p v-if="grading[sub.id].error" class="text-[11.5px] text-red font-semibold">
-                  {{ grading[sub.id].error }}
+                <p v-if="grading[modalSub.id].error" class="text-[11.5px] text-red font-semibold">
+                  {{ grading[modalSub.id].error }}
                 </p>
                 <div class="flex items-center gap-2">
-                  <button type="button" @click="saveGrading(sub)" :disabled="grading[sub.id].saving"
-                    class="flex-1 border-2 border-dark rounded-lg py-1.5 text-[12.5px] font-bold bg-purple text-white hover:opacity-90 transition disabled:opacity-50">
-                    {{ grading[sub.id].saving ? 'กำลังบันทึก...' : 'บันทึกคะแนน' }}
+                  <button type="button" @click="saveGrading(modalSub)" :disabled="grading[modalSub.id].saving"
+                    class="flex-1 border-2 border-dark rounded-lg py-1.5 text-[12.5px] font-bold bg-purple hover:opacity-90 transition disabled:opacity-50">
+                    {{ grading[modalSub.id].saving ? 'กำลังบันทึก...' : 'บันทึกคะแนน' }}
                   </button>
-                  <button type="button" @click="cancelGrading(sub.id)" :disabled="grading[sub.id].saving"
+                  <button type="button" @click="cancelGrading(modalSub.id)" :disabled="grading[modalSub.id].saving"
                     class="border-2 border-dark rounded-lg px-3 py-1.5 text-[12.5px] font-semibold hover:bg-gray-light transition disabled:opacity-50">
                     ยกเลิก
                   </button>
                 </div>
               </div>
             </div>
+
+            <button type="button" @click="closeModal"
+              class="w-full text-center border-2 border-dark rounded-lg px-3 py-2 font-semibold text-[13px] hover:bg-gray-light transition">
+              ปิด
+            </button>
           </div>
         </div>
-      </template>
-    </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>

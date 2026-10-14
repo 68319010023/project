@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../../composables/useAuth.js'
 import { deleteClassroom } from '../../composables/classroomActions.js'
 import DeleteModal from '../../components/teacher/DeleteModal.vue'
@@ -29,15 +29,18 @@ const {
   getSubmissionUrl, formatDate, isLate,
 } = useClassroomDetail(props.classroomId)
 
-const activeTab = ref('overview')
+const route = useRoute()
+const router = useRouter()
+
+const VALID_TABS = ['overview', 'members', 'assignments']
+const initialTab = VALID_TABS.includes(route.query.tab) ? route.query.tab : 'overview'
+const activeTab = ref(initialTab)
 
 onMounted(async () => {
   await loadAll()
   await loadQuizzes()
   await loadQuizSubmissions()
 })
-
-const router = useRouter()
 const { profile } = useAuth()
 
 // เฉพาะครูเจ้าของห้องเท่านั้นที่เห็นปุ่ม
