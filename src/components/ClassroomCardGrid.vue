@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
-import { getClassroomColorByIndex } from '../lib/classroomColors'
+import { getClassroomColorById } from '../lib/classroomColors'
 import ClassroomCard from './ClassroomCard.vue'
 import DeleteModal from './teacher/DeleteModal.vue'
 import EditClassroomModal from './teacher/EditModal.vue'
@@ -94,16 +94,8 @@ async function loadStudentClassrooms() {
         }
     })
 }
-function hashId(id) {
-    let h = 0
-    for (const ch of String(id)) {
-        h = (h * 31 + ch.charCodeAt(0)) >>> 0
-    }
-    return h
-}
-
 function getColorPair(id) {
-    const { from, to } = getClassroomColorByIndex(hashId(id))
+    const { from, to } = getClassroomColorById(id)
     return { colorFrom: from, colorTo: to }
 }
 
@@ -201,8 +193,8 @@ async function handleDeleteConfirm() {
        md:opacity-0 md:translate-x-4
        md:group-hover:transition-all md:group-hover:duration-300 md:group-hover:ease-out md:group-hover:delay-75
        md:group-hover:opacity-100 md:group-hover:translate-x-0
-       md:group-focus-within:transition-all md:group-focus-within:duration-300
-       md:group-focus-within:opacity-100 md:group-focus-within:translate-x-0" :class="hoveredEditId === room.id
+        md:focus-visible:transition-all md:focus-visible:duration-300
+       md:focus-visible:opacity-100 md:focus-visible:translate-x-0" :class="hoveredEditId === room.id
         ? 'bg-purple border-dark text-dark scale-110'
         : 'bg-white/70 border-dark text-dark'">
                         <Pencil :size="14" :stroke-width="2.5" class="transition-transform duration-200"
@@ -215,8 +207,8 @@ async function handleDeleteConfirm() {
        md:opacity-0 md:translate-x-4
        md:group-hover:transition-all md:group-hover:duration-300 md:group-hover:ease-out
        md:group-hover:opacity-100 md:group-hover:translate-x-0
-       md:group-focus-within:transition-all md:group-focus-within:duration-300
-       md:group-focus-within:opacity-100 md:group-focus-within:translate-x-0"" :class="hoveredDeleteId === room.id
+        md:focus-visible:transition-all md:focus-visible:duration-300
+       md:focus-visible:opacity-100 md:focus-visible:translate-x-0"" :class="hoveredDeleteId === room.id
         ? 'bg-red-500 text-white' : 'bg-white/70 text-dark'">
                         <Trash2 :size="15" :stroke-width="2.5" />
                     </button>

@@ -25,3 +25,15 @@ export function getClassroomColor(seed) {
     }
     return palette[Math.abs(hash) % palette.length]
 }
+export function hashId(id) {
+    let h = 0
+    for (const ch of String(id)) {
+        h = (h * 31 + ch.charCodeAt(0)) >>> 0
+    }
+    return h
+}
+
+
+export function getClassroomColorById(id) {
+    return getClassroomColorByIndex(hashId(id))
+}
