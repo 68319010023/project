@@ -171,7 +171,7 @@ onMounted(() => {
                 <!-- คำทักทาย + ปุ่มหลัก -->
                 <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
-                        <h1 class="font-mali font-bold text-2xl text-dark">{{ greeting }}, {{ profile?.name }}</h1>
+                        <h1 class="font-mali font-bold text-2xl text-dark">{{ greeting }}คุณ {{ profile?.name }}</h1>
                         <p class="text-[13px] text-gray mt-1">{{ todayLabel }} · นี่คือภาพรวมบัญชีของคุณ</p>
                     </div>
                     <router-link :to="homePath"
