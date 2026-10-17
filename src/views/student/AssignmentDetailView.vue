@@ -3,11 +3,13 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   Calendar, Star, MessageSquareText,
-  Paperclip, Link2, Upload, ExternalLink, X, Send, ImageIcon, Clock
+  Paperclip, Link2, Upload, ExternalLink, X, Send, ImageIcon,
+  ArrowLeft, Check, Lock, Hourglass
 } from 'lucide-vue-next'
 import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
 import { useAuth } from '../../composables/useAuth.js'
 import { supabase } from '../../lib/supabase.js'
+import { getClassroomColorById } from '../../lib/classroomColors'
 import AppNavbar from '../../components/AppNavbar.vue'
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +17,8 @@ const classroomId = route.params.id
 const assignmentId = route.params.assignmentId
 
 const { user } = useAuth()
+
+const roomColor = getClassroomColorById(classroomId)
 
 const {
   assignmentDetail, assignmentDetailLoading, loadAssignmentDetail,
@@ -52,6 +56,7 @@ const openingAttachment = ref(false)
 
 // --- ยกเลิกการส่ง ---
 const unsubmitting = ref(false)
+const confirmingUnsubmit = ref(false)
 
 // --- preview url ของไฟล์รูปที่ส่งไปแล้ว (ต้องขอ signed url เพราะ bucket private) ---
 const itemPreviewUrls = ref({}) // { [itemId]: signedUrl }
@@ -74,6 +79,58 @@ const imageItems = computed(() =>
 const otherItems = computed(() =>
   submissionItems.value.filter((i) => !(i.type === 'file' && isImageLabel(i.label)))
 )
+
+// --- ข้อมูลสำหรับ UI ---
+const teacherProfile = computed(() => assignmentDetail.value?.classrooms?.profiles ?? null)
+const teacherName = computed(() =>
+  teacherProfile.value ? `${teacherProfile.value.name ?? ''} ${teacherProfile.value.lastname ?? ''}`.trim() : ''
+)
+const teacherInitials = computed(
+  () => (teacherProfile.value?.name?.[0] ?? '') + (teacherProfile.value?.lastname?.[0] ?? '')
+)
+
+// ชิปเวลา: บอกว่าเหลือกี่วัน / ส่งตรงเวลา / ส่งล่าช้า
+const dueChip = computed(() => {
+  const due = assignmentDetail.value?.due_date
+  if (!due) return null
+
+  if (hasSubmitted.value) {
+    return isLate(due, mySubmission.value?.submitted_at)
+      ? { text: 'ส่งล่าช้า', cls: 'bg-[#ffcdd2]' }
+      : { text: 'ส่งตรงเวลา', cls: 'bg-[#c8e6c9]' }
+  }
+  if (isLate(due)) return { text: 'เลยกำหนดส่งแล้ว', cls: 'bg-[#ffcdd2]' }
+
+  const daysLeft = Math.ceil((new Date(due) - new Date()) / (1000 * 60 * 60 * 24))
+  if (daysLeft <= 1) return { text: 'ส่งภายในพรุ่งนี้!', cls: 'bg-orange' }
+  if (daysLeft <= 3) return { text: `เหลืออีก ${daysLeft} วัน`, cls: 'bg-orange' }
+  return { text: `เหลืออีก ${daysLeft} วัน`, cls: 'bg-white' }
+})
+
+// ไทม์ไลน์สถานะ: มอบหมาย -> ส่งแล้ว -> ตรวจแล้ว
+const steps = computed(() => [
+  { label: 'มอบหมาย', done: true },
+  { label: 'ส่งแล้ว', done: hasSubmitted.value },
+  { label: 'ตรวจแล้ว', done: isGraded.value },
+])
+
+// คะแนน
+const scorePercent = computed(() => {
+  const max = assignmentDetail.value?.max_score
+  if (!isGraded.value || !max) return 0
+  return Math.min(100, Math.round((mySubmission.value.score / max) * 100))
+})
+const scoreBg = computed(() => {
+  if (scorePercent.value >= 80) return 'bg-[#c8e6c9]'
+  if (scorePercent.value >= 50) return 'bg-[#ffe0b2]'
+  return 'bg-[#ffcdd2]'
+})
+const scoreCheer = computed(() => {
+  if (scorePercent.value === 100) return 'เต็มเลย! เก่งมาก 🎉'
+  if (scorePercent.value >= 80) return 'ยอดเยี่ยม!'
+  if (scorePercent.value >= 50) return 'ทำได้ดี พัฒนาต่อไปนะ'
+  return 'ไม่เป็นไร ลองอ่านความเห็นครูแล้วพยายามต่อนะ'
+})
 
 watch(submissionItems, async (items) => {
   for (const item of items) {
@@ -257,6 +314,12 @@ async function openItem(item) {
 // ยกเลิก: ลบ metadata การส่งออกจาก DB แต่ดึงรายการเดิมกลับมาโชว์เป็น staging
 // (ไฟล์จริงยังอยู่ใน storage ไม่ได้ถูกลบ แค่ลบ record ว่า "ส่งแล้ว" เท่านั้น)
 async function handleUnsubmit() {
+  // งานที่ตรวจแล้วห้ามยกเลิก (กันซ้ำอีกชั้นนอกจากซ่อนปุ่ม)
+  if (isGraded.value) {
+    confirmingUnsubmit.value = false
+    return
+  }
+
   // เช็ค auth เช่นเดียวกับตอนส่งงาน — ป้องกัน session หมดอายุระหว่างเปิดหน้าค้างไว้
   if (!user.value) {
     alert('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่อีกครั้ง')
@@ -276,6 +339,7 @@ async function handleUnsubmit() {
   const { error } = await unsubmit(mySubmission.value.id)
 
   unsubmitting.value = false
+  confirmingUnsubmit.value = false
 
   if (error) {
     alert('ยกเลิกไม่สำเร็จ ลองใหม่อีกครั้ง')
@@ -327,212 +391,308 @@ onMounted(async () => {
       { label: assignmentDetail?.title ?? '...' }
     ]" />
 
-
-
-    <div v-if="assignmentDetailLoading" class="text-center text-gray-400 text-[13px] py-16">
+    <div v-if="assignmentDetailLoading" class="text-center text-gray text-[13px] py-16">
       กำลังโหลด...
     </div>
 
     <div v-else-if="!assignmentDetail" class="flex flex-col items-center gap-4 text-center py-20">
-      <p class="text-gray-400 text-[15px]">ไม่พบการบ้านนี้</p>
+      <p class="text-gray text-[15px]">ไม่พบการบ้านนี้</p>
       <router-link :to="{ name: 'classroom-detail', params: { id: classroomId } }"
-        class="px-5 py-2.5 rounded-lg border-2 border-dark bg-purple text-dark font-semibold text-[14px] shadow-offset-sm hover:-translate-y-0.5 transition">
+        class="px-5 py-2.5 rounded-lg border-2 border-dark bg-purple text-dark font-semibold text-[14px] shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 transition">
         กลับหน้าห้องเรียน
       </router-link>
     </div>
 
-    <main v-else class="max-w-[1000px] mx-auto px-6 py-10 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
-      <!-- ซ้าย: เนื้อหางาน -->
-      <div class="bg-white border-3 border-dark rounded-xl shadow-offset p-6">
-        <h1 class="font-mali font-bold text-xl text-dark">{{ assignmentDetail.title }}</h1>
+    <template v-else>
+      <!-- ===== แถบหัวเรื่อง ===== -->
+      <div class="relative overflow-hidden border-b-[3px] border-dark px-6 py-8"
+        :style="{ background: `linear-gradient(135deg, ${roomColor.from} 0%, ${roomColor.to} 100%)` }">
+        <div class="absolute inset-0 pointer-events-none opacity-[0.12]"
+          style="background-image: radial-gradient(#1a1a1a 1.5px, transparent 1.5px); background-size: 18px 18px;" />
 
-        <p class="text-[13px] text-gray-400 mt-1.5">
-          {{ assignmentDetail.classrooms?.profiles?.name }} {{ assignmentDetail.classrooms?.profiles?.lastname }}
-        </p>
+        <div class="max-w-[1000px] mx-auto relative">
+          <router-link :to="{ name: 'classroom-detail', params: { id: classroomId }, query: { tab: 'assignments' } }"
+            class="inline-flex items-center gap-1.5 mb-4 h-8 px-3 rounded-full border-2 border-dark bg-white text-[12.5px] font-bold text-dark
+                   shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 transition">
+            <ArrowLeft :size="14" :stroke-width="3" />
+            กลับห้องเรียน
+          </router-link>
 
-        <div class="flex items-center gap-4 mt-3 flex-wrap">
-          <span v-if="assignmentDetail.due_date"
-            class="inline-flex items-center gap-1.5 text-[12.5px] text-gray-400 font-mono">
-            <Calendar :size="14" :stroke-width="2.5" />
-            ส่งภายใน {{ formatDate(assignmentDetail.due_date) }}
-          </span>
-          <span class="inline-flex items-center gap-1.5 text-[12.5px] text-gray-400 font-mono">
-            <Star :size="14" :stroke-width="2.5" />
-            {{ assignmentDetail.max_score }} คะแนน
-          </span>
-        </div>
+          <h1 class="font-mali font-bold text-3xl text-dark break-words">{{ assignmentDetail.title }}</h1>
 
-        <hr class="border-t-2 border-gray-200 my-5" />
+          <div class="mt-3 flex flex-wrap items-center gap-2.5">
+            <span v-if="teacherName"
+              class="inline-flex items-center gap-2 border-2 border-dark rounded-full pl-1 pr-3 py-1 bg-white/80 text-[13px] font-semibold text-dark">
+              <span class="w-6 h-6 rounded-full border-2 border-dark overflow-hidden bg-purple-light flex items-center justify-center
+                           text-[10px] font-bold font-mali">
+                <img v-if="teacherProfile?.img" :src="teacherProfile.img" class="w-full h-full object-cover" alt="" />
+                <span v-else>{{ teacherInitials }}</span>
+              </span>
+              ครู{{ teacherName }}
+            </span>
 
-        <p v-if="assignmentDetail.description" class="text-[14px] text-dark leading-relaxed whitespace-pre-wrap">
-          {{ assignmentDetail.description }}
-        </p>
-        <p v-else class="text-[13px] text-gray-400">ไม่มีรายละเอียดเพิ่มเติม</p>
+            <span v-if="assignmentDetail.due_date"
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
+              <Calendar :size="14" :stroke-width="2.5" />
+              ส่งภายใน {{ formatDate(assignmentDetail.due_date) }}
+            </span>
 
+            <span v-if="dueChip"
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 text-[12.5px] font-bold text-dark shadow-[2px_2px_0_#1a1a1a]"
+              :class="dueChip.cls">
+              <Hourglass :size="13" :stroke-width="2.5" />
+              {{ dueChip.text }}
+            </span>
 
-        <!-- ไฟล์แนบโจทย์ (ของครู) -->
-        <div v-if="assignmentDetail.attachment_url" class="mt-5 pt-4 border-t-2 border-dashed border-gray-200">
-          <p class="text-[11px] font-bold text-gray-400 font-mono uppercase mb-2">เอกสารประกอบจากครู</p>
-
-          <!-- การ์ดเอกสาร (แบบสวย) -->
-          <button type="button" @click="openAttachment" :disabled="openingAttachment"
-            class="w-full flex items-center gap-3 border-2 border-dark rounded-lg px-4 py-3 bg-purple-light hover:bg-purple transition disabled:opacity-50">
-            <div
-              class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-white overflow-hidden flex items-center justify-center">
-              <img v-if="isAttachmentImage && attachmentPreviewUrl" :src="attachmentPreviewUrl"
-                class="w-full h-full object-cover" />
-              <ImageIcon v-else-if="isAttachmentImage" :size="18" :stroke-width="2" class="text-gray-400" />
-              <Link2 v-else-if="isAttachmentLink" :size="18" :stroke-width="2.5" />
-              <Paperclip v-else :size="18" :stroke-width="2.5" />
-            </div>
-            <div class="flex-1 min-w-0 text-left">
-              <p class="text-[13px] font-bold text-dark truncate">
-                {{ assignmentDetail.attachment_name || 'เอกสารประกอบ' }}
-              </p>
-              <p class="text-[11px] text-gray-400">ไฟล์จากครู</p>
-            </div>
-            <ExternalLink :size="16" :stroke-width="2.5" class="shrink-0" />
-          </button>
+            <span
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
+              <Star :size="14" :stroke-width="2.5" />
+              {{ assignmentDetail.max_score }} คะแนน
+            </span>
+          </div>
         </div>
       </div>
 
-      <!-- ขวา: งานของคุณ -->
-      <div class="bg-white border-3 border-dark rounded-xl shadow-offset p-5 flex flex-col gap-4">
-        <div class="flex items-center justify-between">
-          <h2 class="font-mali font-bold text-[15px] text-dark">งานของคุณ</h2>
+      <main class="max-w-[1000px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+        <!-- ซ้าย: เนื้อหางาน -->
+        <div class="bg-white border-[3px] border-dark rounded-2xl shadow-[6px_6px_0_#1a1a1a] p-6">
+          <h2 class="font-mali font-bold text-[16px] text-dark mb-3">รายละเอียดงาน</h2>
 
-          <span v-if="mySubmissionLoading" class="text-[11px] text-gray-400">...</span>
-          <span v-else-if="isGraded"
-            class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-green-100 text-green-dark">
-            ✓ ตรวจแล้ว
-          </span>
-          <span v-else-if="hasSubmitted && isLate(assignmentDetail.due_date, mySubmission?.submitted_at)"
-            class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-red-100 text-red-600">
-            ส่งล่าช้า
-          </span>
-          <span v-else-if="hasSubmitted"
-            class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-purple-light text-dark">
-            ส่งแล้ว
-          </span>
-          <span v-else-if="isLate(assignmentDetail.due_date)"
-            class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-red-100 text-red-600">
-            เลยกำหนดส่ง
-          </span>
-          <span v-else
-            class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-orange text-dark">
-            ยังไม่ส่ง
-          </span>
-        </div>
-
-        <!-- คะแนน + feedback -->
-        <div v-if="isGraded" class="rounded-xl border-2 border-gray-200 bg-gray-light/60 p-3.5 flex flex-col gap-2">
-          <span class="inline-flex items-center gap-1.5 text-[13px] font-bold text-green-dark w-fit">
-            <Star :size="14" :stroke-width="2.5" />
-            {{ mySubmission.score }}/{{ assignmentDetail.max_score }}
-          </span>
-          <p v-if="mySubmission.feedback" class="flex items-start gap-1.5 text-[12.5px] text-gray-400 leading-relaxed">
-            <MessageSquareText :size="14" :stroke-width="2.5" class="shrink-0 mt-0.5 text-purple" />
-            {{ mySubmission.feedback }}
+          <p v-if="assignmentDetail.description" class="text-[14.5px] text-dark leading-relaxed whitespace-pre-wrap">
+            {{ assignmentDetail.description }}
           </p>
+          <p v-else class="text-[13.5px] text-gray">ไม่มีรายละเอียดเพิ่มเติม</p>
+
+          <!-- ไฟล์แนบโจทย์ (ของครู) -->
+          <div v-if="assignmentDetail.attachment_url" class="mt-6 pt-5 border-t-[3px] border-dashed border-dark/20">
+            <p class="text-[12px] font-bold text-gray font-mono uppercase mb-2.5">เอกสารประกอบจากครู</p>
+
+            <button type="button" @click="openAttachment" :disabled="openingAttachment"
+              class="w-full flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-3 bg-purple-light
+                     shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 hover:bg-purple transition disabled:opacity-50">
+              <div
+                class="w-11 h-11 shrink-0 rounded-lg border-2 border-dark bg-white overflow-hidden flex items-center justify-center">
+                <img v-if="isAttachmentImage && attachmentPreviewUrl" :src="attachmentPreviewUrl"
+                  class="w-full h-full object-cover" />
+                <ImageIcon v-else-if="isAttachmentImage" :size="18" :stroke-width="2" class="text-gray" />
+                <Link2 v-else-if="isAttachmentLink" :size="18" :stroke-width="2.5" />
+                <Paperclip v-else :size="18" :stroke-width="2.5" />
+              </div>
+              <div class="flex-1 min-w-0 text-left">
+                <p class="text-[13.5px] font-bold text-dark truncate">
+                  {{ assignmentDetail.attachment_name || 'เอกสารประกอบ' }}
+                </p>
+                <p class="text-[11.5px] text-gray">กดเพื่อเปิดไฟล์จากครู</p>
+              </div>
+              <ExternalLink :size="16" :stroke-width="2.5" class="shrink-0" />
+            </button>
+          </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!-- STATE 2: ส่งแล้ว — โชว์การ์ดพรีวิวสิ่งที่ส่ง ซ่อนฟอร์มทั้งหมด -->
-        <!-- ============================================================ -->
-        <template v-if="hasSubmitted">
-          <div v-if="submissionItemsLoading" class="text-[12.5px] text-gray-400 text-center py-3">
-            กำลังโหลด...
+        <!-- ขวา: งานของคุณ -->
+        <div class="bg-white border-[3px] border-dark rounded-2xl shadow-[6px_6px_0_#1a1a1a] p-5 flex flex-col gap-4
+                    lg:sticky lg:top-6">
+          <div class="flex items-center justify-between">
+            <h2 class="font-mali font-bold text-[16px] text-dark">งานของคุณ</h2>
+
+            <span v-if="mySubmissionLoading" class="text-[11px] text-gray">...</span>
+            <span v-else-if="isGraded"
+              class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-green-100 text-green-dark">
+              ✓ ตรวจแล้ว
+            </span>
+            <span v-else-if="hasSubmitted && isLate(assignmentDetail.due_date, mySubmission?.submitted_at)"
+              class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-red-100 text-red-600">
+              ส่งล่าช้า
+            </span>
+            <span v-else-if="hasSubmitted"
+              class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-purple-light text-dark">
+              ส่งแล้ว
+            </span>
+            <span v-else-if="isLate(assignmentDetail.due_date)"
+              class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-red-100 text-red-600">
+              เลยกำหนดส่ง
+            </span>
+            <span v-else
+              class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-orange text-dark">
+              ยังไม่ส่ง
+            </span>
           </div>
-          <template v-else>
-            <!-- รูปภาพ: grid thumbnail เล็ก -->
-            <div v-if="imageItems.length > 0" class="grid grid-cols-4 gap-2">
-              <button v-for="item in imageItems" :key="item.id" type="button" @click="openItem(item)"
-                class="aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-dark transition">
-                <img v-if="itemPreviewUrls[item.id]" :src="itemPreviewUrls[item.id]" :alt="item.label"
-                  class="w-full h-full object-cover" />
-                <div v-else class="w-full h-full flex items-center justify-center bg-gray-light">
-                  <ImageIcon :size="16" :stroke-width="2" class="text-gray-400" />
-                </div>
-              </button>
+
+          <!-- ไทม์ไลน์สถานะ -->
+          <ol class="flex items-start px-1">
+            <li v-for="(s, idx) in steps" :key="s.label" class="flex items-start" :class="idx < steps.length - 1 ? 'flex-1' : ''">
+              <div class="flex flex-col items-center gap-1">
+                <span class="w-7 h-7 rounded-full border-[3px] border-dark flex items-center justify-center transition"
+                  :class="s.done ? 'bg-[#c8e6c9]' : 'bg-white'">
+                  <Check v-if="s.done" :size="14" :stroke-width="3.5" />
+                </span>
+                <span class="text-[11px] font-semibold" :class="s.done ? 'text-dark' : 'text-gray'">{{ s.label }}</span>
+              </div>
+              <div v-if="idx < steps.length - 1" class="flex-1 h-[3px] mx-1.5 mt-[12px] rounded"
+                :class="steps[idx + 1].done ? 'bg-dark' : 'bg-dark/20'" />
+            </li>
+          </ol>
+
+          <!-- การ์ดคะแนน -->
+          <div v-if="isGraded" class="rounded-xl border-[3px] border-dark p-4 flex flex-col gap-3" :class="scoreBg">
+            <div class="flex items-end gap-2">
+              <span class="text-[44px] leading-none font-bold text-dark">{{ mySubmission.score }}</span>
+              <span class="text-[20px] leading-none font-bold text-dark/50 mb-1">/ {{ assignmentDetail.max_score }}</span>
+              <span class="ml-auto font-mono text-[12px] font-bold border-2 border-dark bg-white rounded-lg px-2 py-0.5">
+                {{ scorePercent }}%
+              </span>
+            </div>
+            <div class="h-3 border-2 border-dark rounded-full bg-white overflow-hidden">
+              <div class="h-full bg-dark transition-all duration-700" :style="{ width: scorePercent + '%' }" />
+            </div>
+            <p class="text-[12.5px] font-medium text-dark">{{ scoreCheer }}</p>
+          </div>
+
+          <!-- ความเห็นจากครู (ฟองคำพูด) -->
+          <div v-if="isGraded && mySubmission.feedback" class="flex items-start gap-2.5">
+            <span class="w-8 h-8 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light flex items-center justify-center
+                         text-[11px] font-bold font-mali">
+              <img v-if="teacherProfile?.img" :src="teacherProfile.img" class="w-full h-full object-cover" alt="" />
+              <span v-else>{{ teacherInitials }}</span>
+            </span>
+            <div class="flex-1 min-w-0 border-2 border-dark rounded-xl rounded-tl-none px-3 py-2 bg-white shadow-[3px_3px_0_#1a1a1a]">
+              <p class="flex items-center gap-1.5 text-[11px] font-bold text-gray mb-1">
+                <MessageSquareText :size="12" :stroke-width="2.5" />
+                ความเห็นจากครู
+              </p>
+              <p class="text-[13px] text-dark leading-relaxed whitespace-pre-wrap break-words">{{ mySubmission.feedback }}</p>
+            </div>
+          </div>
+
+          <!-- ============================================================ -->
+          <!-- STATE 2: ส่งแล้ว — โชว์การ์ดพรีวิวสิ่งที่ส่ง ซ่อนฟอร์มทั้งหมด -->
+          <!-- ============================================================ -->
+          <template v-if="hasSubmitted">
+            <div v-if="submissionItemsLoading" class="text-[12.5px] text-gray text-center py-3">
+              กำลังโหลด...
+            </div>
+            <template v-else>
+              <p class="text-[12px] font-bold text-gray font-mono uppercase">สิ่งที่คุณส่ง</p>
+
+              <!-- รูปภาพ: grid thumbnail เล็ก -->
+              <div v-if="imageItems.length > 0" class="grid grid-cols-4 gap-2">
+                <button v-for="item in imageItems" :key="item.id" type="button" @click="openItem(item)"
+                  class="aspect-square rounded-lg overflow-hidden border-2 border-dark hover:-translate-y-0.5 transition">
+                  <img v-if="itemPreviewUrls[item.id]" :src="itemPreviewUrls[item.id]" :alt="item.label"
+                    class="w-full h-full object-cover" />
+                  <div v-else class="w-full h-full flex items-center justify-center bg-gray-light">
+                    <ImageIcon :size="16" :stroke-width="2" class="text-gray" />
+                  </div>
+                </button>
+              </div>
+
+              <!-- ไฟล์อื่น + ลิงก์: list -->
+              <ul v-if="otherItems.length > 0" class="flex flex-col gap-2">
+                <li v-for="item in otherItems" :key="item.id">
+                  <button type="button" @click="openItem(item)"
+                    class="w-full flex items-center gap-2 border-2 border-dark rounded-lg px-3 py-2 bg-white
+                           hover:bg-gray-light hover:-translate-y-0.5 transition">
+                    <Link2 v-if="item.type === 'link'" :size="14" :stroke-width="2.5" class="shrink-0 text-purple" />
+                    <Paperclip v-else :size="14" :stroke-width="2.5" class="shrink-0 text-gray" />
+                    <span class="flex-1 min-w-0 text-left text-[13px] text-dark truncate">{{ item.label }}</span>
+                    <ExternalLink :size="12" :stroke-width="2.5" class="shrink-0 text-gray" />
+                  </button>
+                </li>
+              </ul>
+            </template>
+
+            <!-- ตรวจแล้ว: ห้ามยกเลิก -->
+            <div v-if="isGraded"
+              class="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-dark/30 px-3 py-2 text-[12.5px] text-gray">
+              <Lock :size="13" :stroke-width="2.5" />
+              งานนี้ตรวจแล้ว ไม่สามารถยกเลิกการส่งได้
             </div>
 
-            <!-- ไฟล์อื่น + ลิงก์: list -->
-            <ul v-if="otherItems.length > 0" class="flex flex-col gap-2">
-              <li v-for="item in otherItems" :key="item.id">
-                <button type="button" @click="openItem(item)"
-                  class="w-full flex items-center gap-2 border-2 border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-light/60 transition">
-                  <Link2 v-if="item.type === 'link'" :size="14" :stroke-width="2.5" class="shrink-0 text-purple" />
-                  <Paperclip v-else :size="14" :stroke-width="2.5" class="shrink-0 text-gray-400" />
-                  <span class="flex-1 min-w-0 text-left text-[13px] text-dark truncate">{{ item.label }}</span>
-                  <ExternalLink :size="12" :stroke-width="2.5" class="shrink-0 text-gray-400" />
+            <!-- ยังไม่ตรวจ: ยกเลิกได้ (ปุ่มเล็ก + ขั้นยืนยัน) -->
+            <template v-else>
+              <button v-if="!confirmingUnsubmit" type="button" @click="confirmingUnsubmit = true"
+                class="w-full text-center border-2 border-red-600 bg-white py-1.5 text-[12.5px] text-red-600 rounded-lg font-semibold
+                       hover:bg-red-50 transition">
+                ยกเลิกการส่ง
+              </button>
+
+              <div v-else class="rounded-lg border-2 border-dark bg-[#fff0d6] p-3 flex flex-col gap-2.5">
+                <p class="text-[12.5px] text-dark leading-relaxed">
+                  ยกเลิกการส่งทั้งหมดใช่ไหม? ไฟล์ที่ส่งไปจะกลับมาอยู่ในรายการเตรียมส่ง แก้ไขแล้วส่งใหม่ได้
+                </p>
+                <div class="flex gap-2">
+                  <button type="button" @click="confirmingUnsubmit = false" :disabled="unsubmitting"
+                    class="flex-1 border-2 border-dark bg-white rounded-lg py-1.5 text-[12.5px] font-semibold hover:bg-gray-light transition disabled:opacity-50">
+                    ไม่ยกเลิก
+                  </button>
+                  <button type="button" @click="handleUnsubmit" :disabled="unsubmitting"
+                    class="flex-1 border-2 border-dark bg-red-600 text-white rounded-lg py-1.5 text-[12.5px] font-semibold hover:bg-red-500 transition disabled:opacity-50">
+                    {{ unsubmitting ? 'กำลังยกเลิก...' : 'ยืนยัน' }}
+                  </button>
+                </div>
+              </div>
+            </template>
+          </template>
+
+          <!-- ============================================================ -->
+          <!-- STATE 1: ยังไม่ส่ง — ฟอร์มแนบไฟล์/ลิงก์ (staging) + ปุ่มส่ง -->
+          <!-- ============================================================ -->
+          <template v-else>
+            <!-- รายการที่ staging ไว้ (ยังไม่ยิงขึ้น DB จริง — อาจเป็นไฟล์ใหม่ หรือของเดิมที่เพิ่งกดยกเลิกมา) -->
+            <ul v-if="hasPending" class="flex flex-col gap-2">
+              <li v-for="pending in pendingFiles" :key="pending.tempId"
+                class="flex items-center gap-2 border-2 border-dark rounded-lg px-3 py-2 bg-gray-light/60">
+                <img v-if="pending.previewUrl" :src="pending.previewUrl" class="w-8 h-8 rounded object-cover shrink-0" />
+                <Paperclip v-else :size="14" :stroke-width="2.5" class="shrink-0 text-gray" />
+                <span class="flex-1 min-w-0 text-[13px] text-dark truncate">{{ pending.file ? pending.file.name :
+                  pending.label }}</span>
+                <span v-if="pending.existingUrl" class="shrink-0 text-[10px] text-gray font-mono">เดิม</span>
+                <button type="button" @click="removePendingFile(pending.tempId)"
+                  class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-red-600 hover:bg-red-50">
+                  <X :size="13" :stroke-width="2.5" />
+                </button>
+              </li>
+              <li v-for="pending in pendingLinks" :key="pending.tempId"
+                class="flex items-center gap-2 border-2 border-dark rounded-lg px-3 py-2 bg-gray-light/60">
+                <Link2 :size="14" :stroke-width="2.5" class="shrink-0 text-purple" />
+                <span class="flex-1 min-w-0 text-[13px] text-dark truncate">{{ pending.label }}</span>
+                <button type="button" @click="removePendingLink(pending.tempId)"
+                  class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-red-600 hover:bg-red-50">
+                  <X :size="13" :stroke-width="2.5" />
                 </button>
               </li>
             </ul>
-          </template>
 
-          <!-- ยกเลิกการส่ง -->
-          <button type="button" @click="handleUnsubmit" :disabled="unsubmitting"
-            class="w-full text-center border-dark border-2 bg-red-600 p-2 text-[12.5px] text-white rounded-lg font-semibold disabled:opacity-50 hover:bg-red-500 hover:text-black transition">
-            {{ unsubmitting ? 'กำลังยกเลิก...' : 'ยกเลิกการส่งทั้งหมด' }}
-          </button>
-        </template>
+            <!-- ฟอร์มแนบ -->
+            <div class="flex flex-col gap-2.5 pt-3 border-t-[3px] border-dashed border-dark/20">
+              <div class="flex flex-col gap-1.5">
+                <input v-model="linkUrlInput" type="text" placeholder="วางลิงก์แล้วกด Enter เช่น https://..."
+                  class="w-full px-3 py-2 rounded-lg border-2 border-dark text-[13px] outline-none focus:bg-gray-light transition"
+                  @keyup.enter="handleAddLinkToPending" />
+                <p v-if="linkError" class="text-[12px] text-red-600">{{ linkError }}</p>
+              </div>
 
-        <!-- ============================================================ -->
-        <!-- STATE 1: ยังไม่ส่ง — ฟอร์มแนบไฟล์/ลิงก์ (staging) + ปุ่มส่ง -->
-        <!-- ============================================================ -->
-        <template v-else>
-          <!-- รายการที่ staging ไว้ (ยังไม่ยิงขึ้น DB จริง — อาจเป็นไฟล์ใหม่ หรือของเดิมที่เพิ่งกดยกเลิกมา) -->
-          <ul v-if="hasPending" class="flex flex-col gap-2">
-            <li v-for="pending in pendingFiles" :key="pending.tempId"
-              class="flex items-center gap-2 border-2 border-gray-200 rounded-lg px-3 py-2 bg-gray-light/40">
-              <img v-if="pending.previewUrl" :src="pending.previewUrl" class="w-8 h-8 rounded object-cover shrink-0" />
-              <Paperclip v-else :size="14" :stroke-width="2.5" class="shrink-0 text-gray-400" />
-              <span class="flex-1 min-w-0 text-[13px] text-dark truncate">{{ pending.file ? pending.file.name :
-                pending.label }}</span>
-              <span v-if="pending.existingUrl" class="shrink-0 text-[10px] text-gray-400 font-mono">เดิม</span>
-              <button type="button" @click="removePendingFile(pending.tempId)"
-                class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-red-600 hover:bg-red-50">
-                <X :size="13" :stroke-width="2.5" />
+              <input ref="fileInput" type="file" multiple class="hidden" @change="handleFileSelect" />
+              <button type="button" @click="triggerFilePicker"
+                class="w-full flex items-center justify-center gap-2 border-2 border-dark rounded-lg px-3 py-2 font-semibold text-[13px]
+                       bg-white shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 transition">
+                <Upload :size="14" :stroke-width="2.5" />
+                แนบไฟล์
               </button>
-            </li>
-            <li v-for="pending in pendingLinks" :key="pending.tempId"
-              class="flex items-center gap-2 border-2 border-gray-200 rounded-lg px-3 py-2 bg-gray-light/40">
-              <Link2 :size="14" :stroke-width="2.5" class="shrink-0 text-purple" />
-              <span class="flex-1 min-w-0 text-[13px] text-dark truncate">{{ pending.label }}</span>
-              <button type="button" @click="removePendingLink(pending.tempId)"
-                class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-red-600 hover:bg-red-50">
-                <X :size="13" :stroke-width="2.5" />
-              </button>
-            </li>
-          </ul>
-
-          <!-- ฟอร์มแนบ -->
-          <div class="flex flex-col gap-2.5 pt-2 border-t-2 border-dashed border-gray-200">
-            <div class="flex flex-col gap-1.5">
-              <input v-model="linkUrlInput" type="text" placeholder="วางลิงก์แล้วกด Enter เช่น https://..."
-                class="w-full px-3 py-2 rounded-lg border-2 border-dark text-[13px]"
-                @keyup.enter="handleAddLinkToPending" />
-              <p v-if="linkError" class="text-[12px] text-red-600">{{ linkError }}</p>
             </div>
 
-            <input ref="fileInput" type="file" multiple class="hidden" @change="handleFileSelect" />
-            <button type="button" @click="triggerFilePicker"
-              class="w-full flex items-center justify-center gap-2 border-2 border-dark rounded-lg px-3 py-2 font-semibold text-[13px] hover:bg-gray-light transition">
-              <Upload :size="14" :stroke-width="2.5" />
-              แนบไฟล์
+            <p v-if="submitError" class="text-[12px] text-red-600">{{ submitError }}</p>
+
+            <!-- ปุ่มส่ง -->
+            <button type="button" @click="handleSubmitAll" :disabled="submitting || !hasPending"
+              class="w-full flex items-center justify-center gap-2 text-center border-dark border-[3px] bg-orange p-2.5 text-[14px] text-dark rounded-xl font-bold
+                     shadow-[4px_4px_0_#1a1a1a] hover:-translate-y-0.5 transition disabled:opacity-50 disabled:pointer-events-none">
+              <Send :size="15" :stroke-width="2.5" />
+              {{ submitting ? 'กำลังส่ง...' : 'ส่งการบ้าน' }}
             </button>
-          </div>
-
-          <p v-if="submitError" class="text-[12px] text-red-600">{{ submitError }}</p>
-
-          <!-- ปุ่มส่ง -->
-          <button type="button" @click="handleSubmitAll" :disabled="submitting || !hasPending"
-            class="w-full flex items-center justify-center gap-2 text-center border-dark border-2 bg-blue-600 p-2 text-[13px] text-white rounded-lg font-semibold disabled:opacity-50 hover:bg-blue-500 transition">
-            <Send :size="14" :stroke-width="2.5" />
-            {{ submitting ? 'กำลังส่ง...' : 'ส่งการบ้าน' }}
-          </button>
-        </template>
-      </div>
-    </main>
+          </template>
+        </div>
+      </main>
+    </template>
   </div>
 </template>

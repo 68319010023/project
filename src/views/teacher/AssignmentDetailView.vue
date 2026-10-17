@@ -1,16 +1,21 @@
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { supabase } from '../../lib/supabase.js'
 import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
+import { getClassroomColorById } from '../../lib/classroomColors'
 import AppNavbar from '../../components/AppNavbar.vue'
-import { ArrowLeft, Calendar, Star, Paperclip, Link2, ExternalLink, Check, Pencil, ChevronDown } from 'lucide-vue-next'
+import {
+  ArrowLeft, Calendar, Star, Paperclip, Link2, ExternalLink, Check, Pencil,
+  ClipboardList, Users, Clock, CheckCircle2, Search, X,
+} from 'lucide-vue-next'
 
 const route = useRoute()
-const router = useRouter()
 
 const classroomId = route.params.id
 const assignmentId = route.params.assignmentId
+
+const roomColor = getClassroomColorById(classroomId)
 
 const {
   assignmentDetail, assignmentDetailLoading, loadAssignmentDetail,
@@ -37,8 +42,36 @@ const submissionsLoading = ref(true)
 const itemsBySubmission = reactive({})
 const itemsLoading = ref(true)
 
-// --- ให้คะแนน + feedback ---
+// --- สรุปตัวเลข + ค้นหา/กรอง ---
+const hasScore = (s) => s.score !== null && s.score !== undefined
 
+const pendingCount = computed(() => submissions.value.filter((s) => !hasScore(s)).length)
+const gradedCount = computed(() => submissions.value.filter(hasScore).length)
+
+const search = ref('')
+const statusFilter = ref('all') // 'all' | 'pending' | 'graded'
+
+const STATUS_FILTERS = [
+  { key: 'all', label: 'ทั้งหมด' },
+  { key: 'pending', label: 'รอตรวจ' },
+  { key: 'graded', label: 'ตรวจแล้ว' },
+]
+
+const filteredSubmissions = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return submissions.value
+    .filter((s) => {
+      if (statusFilter.value === 'pending' && hasScore(s)) return false
+      if (statusFilter.value === 'graded' && !hasScore(s)) return false
+      if (!q) return true
+      const fullName = `${s.profiles?.name ?? ''} ${s.profiles?.lastname ?? ''}`.toLowerCase()
+      return fullName.includes(q)
+    })
+    // งานที่รอตรวจขึ้นก่อน (sort เสถียร ลำดับเวลาส่งเดิมยังคงอยู่ในแต่ละกลุ่ม)
+    .sort((a, b) => Number(hasScore(a)) - Number(hasScore(b)))
+})
+
+// --- ให้คะแนน + feedback ---
 const grading = reactive({})
 const modalSub = ref(null)
 
@@ -98,14 +131,9 @@ async function saveGrading(sub) {
   }
 
   // อัปเดตข้อมูลในการ์ดทันทีโดยไม่ต้อง reload ทั้งหน้า
-  // อัปเดตข้อมูลในการ์ดทันทีโดยไม่ต้อง reload ทั้งหน้า
   sub.score = scoreNum
   sub.feedback = g.feedback?.trim() || null
   g.open = false
-}
-
-function openGradingAndKeepModal(sub) {
-  openGrading(sub)
 }
 
 async function loadSubmissions() {
@@ -171,67 +199,169 @@ onMounted(async () => {
       { label: assignmentDetail?.title ?? '...' }
     ]" />
 
-    <div class="max-w-[1000px] mx-auto px-6 py-8">
-      <router-link :to="{ name: 'classroom-detail', params: { id: classroomId }, query: { tab: 'assignments' } }"
-        class="inline-flex items-center gap-1.5 text-[13px] text-gray font-semibold hover:text-dark transition mb-4">
-        <ArrowLeft :size="15" :stroke-width="2.5" />
-        กลับไปหน้าห้องเรียน
-      </router-link>
+    <!-- ===== แถบหัวเรื่อง ===== -->
+    <div class="relative overflow-hidden border-b-[3px] border-dark px-6 py-8"
+      :style="{ background: `linear-gradient(135deg, ${roomColor.from} 0%, ${roomColor.to} 100%)` }">
+      <div class="absolute inset-0 pointer-events-none opacity-[0.12]"
+        style="background-image: radial-gradient(#1a1a1a 1.5px, transparent 1.5px); background-size: 18px 18px;" />
 
-      <div v-if="assignmentDetailLoading"
-        class="h-[140px] border-3 border-dark rounded-2xl bg-gray-light animate-pulse" />
+      <div class="max-w-[1000px] mx-auto relative">
+        <router-link :to="{ name: 'classroom-detail', params: { id: classroomId }, query: { tab: 'assignments' } }"
+          class="inline-flex items-center gap-1.5 mb-4 h-8 px-3 rounded-full border-2 border-dark bg-white text-[12.5px] font-bold text-dark
+                 shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 transition">
+          <ArrowLeft :size="14" :stroke-width="3" />
+          กลับห้องเรียน
+        </router-link>
 
-      <template v-else-if="assignmentDetail">
-        <!-- ชื่องาน + รายละเอียด -->
-        <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-6 mb-6">
-          <h1 class="font-mali font-bold text-2xl text-dark">{{ assignmentDetail.title }}</h1>
-          <p v-if="assignmentDetail.description" class="text-[14px] text-gray mt-2 leading-relaxed">
-            {{ assignmentDetail.description }}
-          </p>
+        <div v-if="assignmentDetailLoading" class="h-[80px] rounded-2xl bg-white/40 animate-pulse" />
 
-          <div class="flex items-center gap-4 mt-4 flex-wrap">
-            <span class="inline-flex items-center gap-1.5 text-[12.5px] text-gray font-mono">
+        <template v-else-if="assignmentDetail">
+          <div class="flex items-start gap-3">
+            <div class="w-12 h-12 shrink-0 rounded-xl border-[3px] border-dark bg-white flex items-center justify-center
+                        shadow-[3px_3px_0_#1a1a1a] -rotate-3">
+              <ClipboardList :size="22" :stroke-width="2.5" class="text-dark" />
+            </div>
+            <h1 class="font-mali font-bold text-3xl text-dark break-words min-w-0">{{ assignmentDetail.title }}</h1>
+          </div>
+
+          <div class="mt-3 flex flex-wrap items-center gap-2.5">
+            <span v-if="assignmentDetail.due_date"
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
               <Calendar :size="14" :stroke-width="2.5" />
               ส่งภายใน {{ formatDate(assignmentDetail.due_date) }}
             </span>
-            <span class="inline-flex items-center gap-1.5 text-[12.5px] text-gray font-mono">
+            <span
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
               <Star :size="14" :stroke-width="2.5" />
               {{ assignmentDetail.max_score }} คะแนนเต็ม
             </span>
           </div>
+        </template>
+      </div>
+    </div>
 
-          <div v-if="assignmentDetail.attachment_url" class="mt-4 pt-4 border-t-2 border-dashed border-gray-200">
-            <p class="text-[11px] font-bold text-gray font-mono uppercase mb-2">เอกสารประกอบที่แนบไว้</p>
+    <div class="max-w-[1000px] mx-auto px-6 py-8">
+      <p v-if="!assignmentDetailLoading && !assignmentDetail" class="text-center text-gray text-[14px] py-16">
+        ไม่พบการบ้านนี้
+      </p>
+
+      <template v-else-if="assignmentDetail">
+        <!-- ===== รายละเอียดงาน + ไฟล์แนบ ===== -->
+        <div v-if="assignmentDetail.description || assignmentDetail.attachment_url"
+          class="bg-white border-[3px] border-dark rounded-2xl shadow-[6px_6px_0_#1a1a1a] p-6 mb-8">
+          <template v-if="assignmentDetail.description">
+            <h2 class="font-mali font-bold text-[16px] text-dark mb-2">รายละเอียดงาน</h2>
+            <p class="text-[14px] text-dark leading-relaxed whitespace-pre-wrap">{{ assignmentDetail.description }}</p>
+          </template>
+
+          <div v-if="assignmentDetail.attachment_url"
+            :class="assignmentDetail.description ? 'mt-5 pt-5 border-t-[3px] border-dashed border-dark/20' : ''">
+            <p class="text-[12px] font-bold text-gray font-mono uppercase mb-2.5">เอกสารประกอบที่แนบไว้</p>
             <button type="button" @click="openAttachment" :disabled="openingAttachment"
-              class="w-full flex items-center gap-3 border-2 border-dark rounded-lg px-4 py-3 bg-purple-light hover:bg-purple transition disabled:opacity-50">
+              class="w-full flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-3 bg-purple-light
+                     shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 hover:bg-purple transition disabled:opacity-50">
               <Paperclip :size="18" :stroke-width="2.5" class="shrink-0" />
               <div class="flex-1 min-w-0 text-left">
-                <p class="text-[13px] font-bold text-dark truncate">
+                <p class="text-[13.5px] font-bold text-dark truncate">
                   {{ assignmentDetail.attachment_name || 'เอกสารประกอบ' }}
                 </p>
-                <p class="text-[11px] text-gray">ไฟล์ที่คุณแนบไว้</p>
+                <p class="text-[11.5px] text-gray">ไฟล์ที่คุณแนบไว้</p>
               </div>
               <ExternalLink :size="16" :stroke-width="2.5" class="shrink-0" />
             </button>
           </div>
         </div>
-        <!-- Grid งานที่นักเรียนส่ง -->
-        <h2 class="font-mali font-bold text-[17px] mb-3">
-          งานที่ส่งแล้ว
-          <span class="text-[13px] text-gray font-mitr font-normal">({{ submissions.length }} คน)</span>
-        </h2>
 
-        <div v-if="submissionsLoading" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div v-for="n in 4" :key="n" class="h-[140px] border-3 border-dark rounded-xl bg-gray-light animate-pulse" />
+        <!-- ===== การ์ดสรุป ===== -->
+        <div class="grid grid-cols-3 gap-4 mb-8">
+          <div class="bg-white border-[3px] border-dark rounded-2xl px-3 sm:px-4 py-3 flex items-center gap-3
+                      shadow-[5px_5px_0_#1a1a1a]">
+            <div class="w-10 h-10 shrink-0 rounded-xl border-[3px] border-dark bg-[#bbdefb] flex items-center justify-center">
+              <Users :size="20" :stroke-width="2.5" />
+            </div>
+            <div>
+              <p class="text-[22px] leading-none font-bold">{{ submissions.length }}</p>
+              <p class="text-[12px] text-gray mt-1">ส่งแล้ว</p>
+            </div>
+          </div>
+
+          <div class="border-[3px] border-dark rounded-2xl px-3 sm:px-4 py-3 flex items-center gap-3
+                      shadow-[5px_5px_0_#1a1a1a]" :class="pendingCount > 0 ? 'bg-[#ffd699]' : 'bg-white'">
+            <div class="w-10 h-10 shrink-0 rounded-xl border-[3px] border-dark bg-white flex items-center justify-center">
+              <Clock :size="20" :stroke-width="2.5" />
+            </div>
+            <div>
+              <p class="text-[22px] leading-none font-bold">{{ pendingCount }}</p>
+              <p class="text-[12px] text-gray mt-1">รอตรวจ</p>
+            </div>
+          </div>
+
+          <div class="bg-white border-[3px] border-dark rounded-2xl px-3 sm:px-4 py-3 flex items-center gap-3
+                      shadow-[5px_5px_0_#1a1a1a]">
+            <div class="w-10 h-10 shrink-0 rounded-xl border-[3px] border-dark bg-[#c8e6c9] flex items-center justify-center">
+              <CheckCircle2 :size="20" :stroke-width="2.5" />
+            </div>
+            <div>
+              <p class="text-[22px] leading-none font-bold">{{ gradedCount }}</p>
+              <p class="text-[12px] text-gray mt-1">ตรวจแล้ว</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== หัวรายการ + ค้นหา/กรอง ===== -->
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 class="font-mali font-bold text-[17px]">
+            งานที่ส่งแล้ว
+            <span class="text-[13px] text-gray font-mitr font-normal">
+              ({{ filteredSubmissions.length }}{{ filteredSubmissions.length !== submissions.length ? ` จาก ${submissions.length}` : '' }} คน)
+            </span>
+          </h2>
+
+          <div v-if="submissions.length > 0" class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <!-- ค้นหาชื่อ -->
+            <div class="relative flex-1 sm:flex-none sm:w-[200px]">
+              <Search :size="15" :stroke-width="2.5"
+                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray pointer-events-none" />
+              <input v-model="search" type="text" placeholder="ค้นหาชื่อนักเรียน..."
+                class="w-full pl-9 pr-8 py-2 rounded-lg border-2 border-dark bg-white text-[13px] text-dark
+                       placeholder:text-gray outline-none focus:bg-gray-light transition" />
+              <button v-if="search" type="button" @click="search = ''" aria-label="ล้างคำค้นหา"
+                class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center hover:bg-orange transition">
+                <X :size="12" :stroke-width="3" />
+              </button>
+            </div>
+
+            <!-- กรองสถานะ -->
+            <div class="inline-flex border-2 border-dark rounded-lg overflow-hidden bg-white">
+              <button v-for="f in STATUS_FILTERS" :key="f.key" type="button" @click="statusFilter = f.key"
+                class="px-3 py-1.5 text-[12.5px] font-bold transition border-r-2 border-dark last:border-r-0"
+                :class="statusFilter === f.key ? 'bg-dark text-white' : 'bg-white text-dark hover:bg-gray-light'">
+                {{ f.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Grid งานที่นักเรียนส่ง ===== -->
+        <div v-if="submissionsLoading" class="flex flex-wrap gap-4">
+          <div v-for="n in 4" :key="n" class="w-[250px] h-[72px] border-[3px] border-dark rounded-2xl bg-gray-light animate-pulse" />
         </div>
 
         <p v-else-if="submissions.length === 0"
-          class="bg-white border-3 border-dashed border-dark/30 rounded-2xl p-8 text-center text-gray text-[13.5px]">
+          class="bg-white border-[3px] border-dashed border-dark/30 rounded-2xl p-8 text-center text-gray text-[13.5px]">
           ยังไม่มีใครส่งการบ้านชิ้นนี้
         </p>
-        <div v-else class="flex flex-wrap gap-3">
-          <button type="button" v-for="sub in submissions" :key="sub.id" @click="openModal(sub)" class="w-[250px] bg-white border-2 border-dark rounded-xl shadow-offset overflow-hidden transition
-                     hover:-translate-y-1 hover:shadow-offset-lg text-left">
+
+        <p v-else-if="filteredSubmissions.length === 0"
+          class="bg-white border-[3px] border-dashed border-dark/30 rounded-2xl p-8 text-center text-gray text-[13.5px]">
+          ไม่พบนักเรียนที่ตรงกับเงื่อนไข
+        </p>
+
+        <div v-else class="flex flex-wrap gap-4">
+          <button type="button" v-for="sub in filteredSubmissions" :key="sub.id" @click="openModal(sub)"
+            class="w-[250px] border-[3px] border-dark rounded-2xl shadow-[4px_4px_0_#1a1a1a] overflow-hidden transition
+                   hover:-translate-y-1 hover:shadow-[6px_6px_0_#1a1a1a] text-left"
+            :class="hasScore(sub) ? 'bg-white' : 'bg-[#fff0d6]'">
             <div class="flex items-center gap-2.5 px-3.5 py-3">
               <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark overflow-hidden bg-purple-light
                           flex items-center justify-center font-mali font-bold text-[12px]">
@@ -245,7 +375,7 @@ onMounted(async () => {
                   {{ sub.profiles?.name }} {{ sub.profiles?.lastname }}
                 </p>
                 <p v-if="isLate(assignmentDetail.due_date, sub.submitted_at)"
-                  class="text-[10px] font-bold text-red-600">
+                  class="text-[10.5px] font-bold text-red-600">
                   ส่งล่าช้า
                 </p>
                 <p v-else class="text-[10.5px] text-gray truncate">
@@ -253,7 +383,7 @@ onMounted(async () => {
                 </p>
               </div>
 
-              <span v-if="sub.score !== null && sub.score !== undefined"
+              <span v-if="hasScore(sub)"
                 class="shrink-0 inline-flex items-center gap-0.5 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[10px] font-bold bg-green-100 text-green-dark">
                 <Check :size="10" :stroke-width="3" />
                 {{ sub.score }}/{{ assignmentDetail.max_score }}
@@ -268,13 +398,13 @@ onMounted(async () => {
       </template>
     </div>
 
-    <!-- Modal รายละเอียดการส่งงาน + ให้คะแนน -->
+    <!-- ===== Modal รายละเอียดการส่งงาน + ให้คะแนน ===== -->
     <Teleport to="body">
       <Transition name="modal">
         <div v-if="modalSub" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           @click.self="closeModal">
           <div role="dialog" aria-modal="true"
-            class="modal-card w-full max-w-md bg-white border-3 border-dark rounded-2xl shadow-offset p-6 flex flex-col gap-4 max-h-[85vh] overflow-y-auto">
+            class="modal-card w-full max-w-md bg-white border-[3px] border-dark rounded-2xl shadow-[6px_6px_0_#1a1a1a] p-6 flex flex-col gap-4 max-h-[85vh] overflow-y-auto">
 
             <!-- หัว: โปรไฟล์นักเรียน -->
             <div class="flex items-center gap-3">
@@ -297,72 +427,76 @@ onMounted(async () => {
             </div>
 
             <!-- ไฟล์แนบ / ลิงก์ -->
-            <div class="pt-3 border-t-2 border-dashed border-gray-200">
-              <p class="text-[11px] font-bold text-gray font-mono uppercase mb-2">ไฟล์ที่ส่ง</p>
+            <div class="pt-3 border-t-[3px] border-dashed border-dark/20">
+              <p class="text-[12px] font-bold text-gray font-mono uppercase mb-2">ไฟล์ที่ส่ง</p>
               <p v-if="itemsLoading" class="text-gray text-[12px]">กำลังโหลดไฟล์...</p>
               <p v-else-if="(itemsBySubmission[modalSub.id] || []).length === 0" class="text-gray text-[12px]">
                 ไม่พบไฟล์ที่ส่ง
               </p>
-              <ul v-else class="flex flex-col gap-1.5">
+              <ul v-else class="flex flex-col gap-2">
                 <li v-for="item in itemsBySubmission[modalSub.id]" :key="item.id">
                   <button type="button" @click="openItem(item)"
-                    class="w-full flex items-center gap-2 border-2 border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-light/60 transition">
+                    class="w-full flex items-center gap-2 border-2 border-dark rounded-lg px-3 py-2 bg-white
+                           hover:bg-gray-light hover:-translate-y-0.5 transition">
                     <Link2 v-if="item.type === 'link'" :size="13" :stroke-width="2.5" class="shrink-0 text-purple" />
-                    <Paperclip v-else :size="13" :stroke-width="2.5" class="shrink-0 text-gray-400" />
+                    <Paperclip v-else :size="13" :stroke-width="2.5" class="shrink-0 text-gray" />
                     <span class="flex-1 min-w-0 text-left text-[12.5px] text-dark truncate">{{ item.label }}</span>
-                    <ExternalLink :size="11" :stroke-width="2.5" class="shrink-0 text-gray-400" />
+                    <ExternalLink :size="11" :stroke-width="2.5" class="shrink-0 text-gray" />
                   </button>
                 </li>
               </ul>
             </div>
 
             <!-- ให้คะแนน + feedback -->
-            <div class="pt-3 border-t-2 border-dashed border-gray-200">
+            <div class="pt-3 border-t-[3px] border-dashed border-dark/20">
               <template v-if="!grading[modalSub.id]?.open">
-                <div v-if="modalSub.score !== null && modalSub.score !== undefined"
-                  class="flex items-start justify-between gap-2">
+                <div v-if="hasScore(modalSub)"
+                  class="rounded-xl border-[3px] border-dark bg-[#c8e6c9] p-3.5 flex items-start justify-between gap-2">
                   <div class="min-w-0 flex-1">
-                    <p class="inline-flex items-center gap-1.5 text-[14px] font-bold text-green-dark">
-                      <Check :size="15" :stroke-width="3" />
+                    <p class="inline-flex items-center gap-1.5 text-[15px] font-bold text-dark">
+                      <Check :size="16" :stroke-width="3" />
                       {{ modalSub.score }} / {{ assignmentDetail.max_score }} คะแนน
                     </p>
                     <p v-if="modalSub.feedback"
-                      class="text-[12.5px] text-gray mt-1 leading-relaxed whitespace-pre-line">
+                      class="text-[12.5px] text-dark mt-1.5 leading-relaxed whitespace-pre-line break-words">
                       {{ modalSub.feedback }}
                     </p>
                   </div>
                   <button type="button" @click="openGrading(modalSub)"
-                    class="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-purple hover:text-dark transition">
-                    <Pencil :size="13" :stroke-width="2.5" />
+                    class="shrink-0 inline-flex items-center gap-1 text-[12px] font-bold border-2 border-dark rounded-lg px-2 py-1 bg-white
+                           hover:-translate-y-0.5 transition">
+                    <Pencil :size="12" :stroke-width="2.5" />
                     แก้ไข
                   </button>
                 </div>
                 <button v-else type="button" @click="openGrading(modalSub)"
-                  class="w-full border-2 border-dark rounded-lg py-2.5 text-[13.5px] font-bold bg-orange  hover:opacity-90 transition">
+                  class="w-full border-[3px] border-dark rounded-xl py-2.5 text-[14px] font-bold bg-orange
+                         shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 transition">
                   ให้คะแนน
                 </button>
               </template>
 
-              <div v-else class="flex flex-col gap-2">
+              <div v-else class="flex flex-col gap-2.5">
                 <div class="flex items-center gap-2">
                   <input type="number" v-model="grading[modalSub.id].score" min="0" :max="assignmentDetail.max_score"
                     placeholder="คะแนน"
-                    class="w-24 border-2 border-dark rounded-lg px-2 py-1.5 text-[13px] font-mono font-bold" />
+                    class="w-24 border-2 border-dark rounded-lg px-2 py-1.5 text-[13px] font-mono font-bold outline-none focus:bg-gray-light" />
                   <span class="text-[12px] text-gray">/ {{ assignmentDetail.max_score }}</span>
                 </div>
                 <textarea v-model="grading[modalSub.id].feedback" rows="3"
                   placeholder="feedback ให้นักเรียน (ไม่บังคับ)"
-                  class="w-full border-2 border-dark rounded-lg px-2.5 py-1.5 text-[12.5px] resize-none" />
-                <p v-if="grading[modalSub.id].error" class="text-[11.5px] text-red font-semibold">
+                  class="w-full border-2 border-dark rounded-lg px-2.5 py-1.5 text-[12.5px] resize-none outline-none focus:bg-gray-light" />
+                <p v-if="grading[modalSub.id].error" class="text-[12px] text-red-600 font-semibold">
                   {{ grading[modalSub.id].error }}
                 </p>
                 <div class="flex items-center gap-2">
                   <button type="button" @click="saveGrading(modalSub)" :disabled="grading[modalSub.id].saving"
-                    class="flex-1 border-2 border-dark rounded-lg py-1.5 text-[12.5px] font-bold bg-purple hover:opacity-90 transition disabled:opacity-50">
+                    class="flex-1 border-[3px] border-dark rounded-xl py-2 text-[13px] font-bold bg-purple shadow-[3px_3px_0_#1a1a1a]
+                           hover:-translate-y-0.5 transition disabled:opacity-50 disabled:pointer-events-none">
                     {{ grading[modalSub.id].saving ? 'กำลังบันทึก...' : 'บันทึกคะแนน' }}
                   </button>
                   <button type="button" @click="cancelGrading(modalSub.id)" :disabled="grading[modalSub.id].saving"
-                    class="border-2 border-dark rounded-lg px-3 py-1.5 text-[12.5px] font-semibold hover:bg-gray-light transition disabled:opacity-50">
+                    class="border-2 border-dark rounded-xl px-3 py-2 text-[13px] font-semibold hover:bg-gray-light transition disabled:opacity-50">
                     ยกเลิก
                   </button>
                 </div>
@@ -370,7 +504,7 @@ onMounted(async () => {
             </div>
 
             <button type="button" @click="closeModal"
-              class="w-full text-center border-2 border-dark rounded-lg px-3 py-2 font-semibold text-[13px] hover:bg-gray-light transition">
+              class="w-full text-center border-2 border-dark rounded-xl px-3 py-2 font-semibold text-[13px] hover:bg-gray-light transition">
               ปิด
             </button>
           </div>

@@ -40,7 +40,7 @@ export function useClassroomDetail(classroomId) {
   const submissionItemsLoading = ref(true)
 
   const memberCount = computed(() => members.value.length)
-    const assignmentCount = computed(() => assignments.value.length + quizzes.value.length)
+  const assignmentCount = computed(() => assignments.value.length + quizzes.value.length)
 
   const submittedCount = computed(
     () => submissions.value.filter((s) => s.submitted_at).length
@@ -58,7 +58,7 @@ export function useClassroomDetail(classroomId) {
     })
   }
 
-   const dueSoonCount = computed(() => {
+  const dueSoonCount = computed(() => {
     const now = new Date()
     const limit = new Date()
     limit.setDate(limit.getDate() + 3)
@@ -239,7 +239,7 @@ export function useClassroomDetail(classroomId) {
         .select(`
         id, title, description, due_date, max_score,
         attachment_url, attachment_name, classroom_id,
-        classrooms(name, profiles:teacher_id(name, lastname))
+        classrooms(name, profiles:teacher_id(name, lastname, img))
       `)
         .eq('id', assignmentId)
         .single()
@@ -488,7 +488,7 @@ export function useClassroomDetail(classroomId) {
         .from('quizzes')
         .select(`
         id, title, due_date, max_score, classroom_id,
-        classrooms(name, profiles:teacher_id(name, lastname))
+        classrooms(name, profiles:teacher_id(name, lastname, img))
       `)
         .eq('id', quizId)
         .single()
@@ -563,7 +563,7 @@ export function useClassroomDetail(classroomId) {
         .single()
 
       if (error) {
-         console.error('submitQuiz error:', error.code, error.message, error.details, error.hint)
+        console.error('submitQuiz error:', error.code, error.message, error.details, error.hint)
         return { error }
       }
 
