@@ -9,7 +9,7 @@ import { useClassroomDetail } from '../../composables/useClassroomDetail.js'
 import AppNavbar from '../../components/AppNavbar.vue'
 import HeroSection from '../../components/HeroSection.vue'
 import TabNav from '../../components/TabNav.vue'
-import Overview from '../../components/ClassroomOverview.vue'
+import Overview from '../../components/teacher/Overview.vue'
 import ClassroomMembers from '../../components/teacher/Members.vue'
 import ClassroomAssignments from '../../components/teacher/Assignments.vue'
 
@@ -116,9 +116,9 @@ async function handleDeleteConfirm() {
       <TabNav v-model:active-tab="activeTab" />
 
       <Overview v-if="activeTab === 'overview'" :classroom-id="classroomId" :member-count="memberCount"
-        :assignment-count="assignmentCount" :submitted-count="submittedCount" :due-soon-count="dueSoonCount"
-        submitted-label="งานที่ส่งเข้ามา"
-        :loading="loading || membersLoading || assignmentsLoading || submissionsLoading" @go-tab="activeTab = $event" />
+        :assignments="assignments" :submissions="submissions" :quizzes="quizzes" :quiz-submissions="quizSubmissions"
+        :loading="loading || membersLoading || assignmentsLoading || submissionsLoading || quizzesLoading || quizSubmissionsLoading"
+        @go-tab="activeTab = $event" />
 
       <ClassroomMembers v-else-if="activeTab === 'members'" :classroom-id="classroomId"
         :class-code="classroom.class_code" :members="members" :members-loading="membersLoading"

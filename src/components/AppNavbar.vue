@@ -1,7 +1,7 @@
 <script setup>
 import { useAuth } from '../composables/useAuth'
 import { useRouter } from 'vue-router'
-import { Settings, ChevronRight } from 'lucide-vue-next'
+import { Settings, ChevronRight, Search, X } from 'lucide-vue-next'
 import NotificationBell from './NotificationBell.vue'
 const emit = defineEmits(['open-create', 'open-join', 'update:searchQuery'])
 
@@ -54,9 +54,17 @@ function goToSettings() {
 
         <div class="flex-1"></div>
 
-        <input v-if="showSearch" :value="searchQuery" @input="emit('update:searchQuery', $event.target.value)"
-            type="text" placeholder="ค้นหาห้องเรียน..."
-            class="hidden md:block ml-4 px-3.5 py-2 rounded-lg bg-white/10 border-2 border-gray-600 text-white text-[13px] placeholder-gray-400 focus:border-purple outline-none w-[220px]" />
+        <div v-if="showSearch" class="relative hidden md:block ml-4 w-[220px]">
+            <Search :size="15" :stroke-width="2.5"
+                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input :value="searchQuery" @input="emit('update:searchQuery', $event.target.value)" type="text"
+                placeholder="ค้นหาห้องเรียน..."
+                class="w-full pl-9 pr-8 py-2 rounded-lg bg-white/10 border-2 border-gray-600 text-white text-[13px] placeholder-gray-400 focus:border-purple outline-none transition" />
+            <button v-if="searchQuery" type="button" @click="emit('update:searchQuery', '')" aria-label="ล้างคำค้นหา"
+                class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-gray-300 hover:bg-orange hover:text-dark transition">
+                <X :size="12" :stroke-width="3" />
+            </button>
+        </div>
         <NotificationBell />
 
         <button type="button" @click="goToSettings"

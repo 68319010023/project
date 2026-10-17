@@ -5,7 +5,7 @@ import { useAuth } from '../../composables/useAuth.js'
 import AppNavbar from '../../components/AppNavbar.vue'
 import HeroSection from '../../components/HeroSection.vue'
 import TabNav from '../../components/TabNav.vue'
-import Overview from '../../components/ClassroomOverview.vue'
+import Overview from '../../components/student/Overview.vue'
 import Members from '../../components/student/Members.vue'
 import Assignments from '../../components/student/Assignments.vue'
 

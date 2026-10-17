@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { User, Bell, BellOff, MessageCircle, LogOut, ChevronRight, Check, Camera, Pencil } from 'lucide-vue-next'
+import { User, Bell, BellOff, MessageCircle, LogOut, ChevronRight, Check, Camera, Pencil, ShieldCheck, Eye, EyeOff } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
 import AppNavbar from '../components/AppNavbar.vue'
@@ -18,6 +18,7 @@ const notificationsOn = computed(() => !!profile.value?.notifications_enabled)
 // ============ หมวดใน sidebar (เก็บหมวดที่เปิดอยู่ใน URL: /settings?tab=...) ============
 const tabs = [
     { key: 'account', label: 'บัญชี', icon: User, desc: 'แก้ไขรูปโปรไฟล์ ชื่อ และอีเมลของบัญชี' },
+    { key: 'security', label: 'ความปลอดภัย', icon: ShieldCheck, desc: 'เปลี่ยนรหัสผ่านของบัญชี' },
     { key: 'notifications', label: 'การแจ้งเตือน', icon: Bell, desc: 'เลือกว่าจะรับการแจ้งเตือนหรือไม่' },
     { key: 'help', label: 'ความช่วยเหลือ', icon: MessageCircle, desc: 'พบปัญหาการใช้งาน แจ้งทีมงานได้' }
 ]
@@ -148,6 +149,86 @@ const showAvatarModal = ref(false)
 const avatarInitials = computed(
     () => (profile.value?.name?.[0] ?? '') + (profile.value?.lastname?.[0] ?? '')
 )
+
+// ============ ความปลอดภัย (เปลี่ยนรหัสผ่าน) ============
+const pwCurrent = ref('')
+const pwNew = ref('')
+const pwConfirm = ref('')
+const showPw = ref(false)
+const pwSaving = ref(false)
+const pwError = ref('')
+const pwSuccess = ref('')
+
+const pwHint = computed(() => {
+    if (pwNew.value && pwNew.value.length < 6) return 'รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร'
+    if (pwNew.value && pwCurrent.value && pwNew.value === pwCurrent.value)
+        return 'รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน'
+    if (pwConfirm.value && pwNew.value !== pwConfirm.value) return 'รหัสผ่านใหม่และการยืนยันไม่ตรงกัน'
+    return ''
+})
+const canChangePw = computed(
+    () =>
+        !!pwCurrent.value &&
+        pwNew.value.length >= 6 &&
+        pwNew.value === pwConfirm.value &&
+        pwNew.value !== pwCurrent.value &&
+        !pwSaving.value
+)
+
+function resetPwForm() {
+    pwCurrent.value = ''
+    pwNew.value = ''
+    pwConfirm.value = ''
+    showPw.value = false
+}
+
+// ออกจากหมวดนี้แล้วล้างรหัสผ่านที่พิมพ์ค้างไว้ทิ้ง
+watch(activeTab, (t) => {
+    if (t !== 'security') {
+        resetPwForm()
+        pwError.value = ''
+        pwSuccess.value = ''
+    }
+})
+
+async function changePassword() {
+    if (!canChangePw.value) return
+
+    pwSaving.value = true
+    pwError.value = ''
+    pwSuccess.value = ''
+
+    try {
+        // ใช้อีเมลจาก auth โดยตรง (ไม่พึ่ง profiles.email ที่อาจว่าง)
+        const { data: userData, error: userError } = await supabase.auth.getUser()
+        const authEmail = userData?.user?.email
+        if (userError || !authEmail) throw userError || new Error('ไม่พบข้อมูลผู้ใช้')
+
+        // ยืนยันรหัสผ่านปัจจุบันก่อน
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+            email: authEmail,
+            password: pwCurrent.value
+        })
+        if (verifyError) {
+            if (verifyError.status === 400) {
+                pwError.value = 'รหัสผ่านปัจจุบันไม่ถูกต้อง'
+                return
+            }
+            throw verifyError
+        }
+
+        const { error } = await supabase.auth.updateUser({ password: pwNew.value })
+        if (error) throw error
+
+        resetPwForm()
+        pwSuccess.value = 'เปลี่ยนรหัสผ่านเรียบร้อยแล้ว'
+    } catch (err) {
+        console.error('changePassword error:', err)
+        pwError.value = 'เปลี่ยนรหัสผ่านไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
+    } finally {
+        pwSaving.value = false
+    }
+}
 
 // ============ การแจ้งเตือน (บันทึกทันที) ============
 const savingNotif = ref(false)
@@ -356,6 +437,58 @@ const inputClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-dark bg-whit
                         </div>
                     </form>
                 </div>
+
+                <!-- ---------- ความปลอดภัย ---------- -->
+                <form v-else-if="activeTab === 'security'" class="flex flex-col gap-4 max-w-[520px]"
+                    @submit.prevent="changePassword">
+
+                    <label class="flex flex-col gap-1.5">
+                        <span class="text-[12px] font-semibold text-dark">รหัสผ่านปัจจุบัน</span>
+                        <input v-model="pwCurrent" :type="showPw ? 'text' : 'password'"
+                            autocomplete="current-password" :class="inputClass" />
+                    </label>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label class="flex flex-col gap-1.5">
+                            <span class="text-[12px] font-semibold text-dark">รหัสผ่านใหม่</span>
+                            <input v-model="pwNew" :type="showPw ? 'text' : 'password'"
+                                autocomplete="new-password" :class="inputClass" />
+                        </label>
+                        <label class="flex flex-col gap-1.5">
+                            <span class="text-[12px] font-semibold text-dark">ยืนยันรหัสผ่านใหม่</span>
+                            <input v-model="pwConfirm" :type="showPw ? 'text' : 'password'"
+                                autocomplete="new-password" :class="inputClass" />
+                        </label>
+                    </div>
+
+                    <p v-if="pwHint" class="text-[11.5px] text-red-600 -mt-1">{{ pwHint }}</p>
+                    <p v-else class="text-[11.5px] text-gray -mt-1">รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร</p>
+
+                    <button type="button" @click="showPw = !showPw" :aria-pressed="showPw"
+                        class="inline-flex items-center gap-1.5 self-start text-[12.5px] font-semibold text-dark hover:underline">
+                        <component :is="showPw ? EyeOff : Eye" :size="14" :stroke-width="2.5" />
+                        {{ showPw ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน' }}
+                    </button>
+
+                    <div role="status" class="flex flex-col gap-2 empty:hidden">
+                        <p v-if="pwSuccess"
+                            class="text-[12.5px] font-semibold text-dark inline-flex items-center gap-1.5">
+                            <Check :size="14" :stroke-width="3" />
+                            {{ pwSuccess }}
+                        </p>
+                        <p v-if="pwError" class="text-[12.5px] text-red-600">{{ pwError }}</p>
+                    </div>
+
+                    <div>
+                        <button type="submit" :disabled="!canChangePw"
+                            class="px-5 py-2.5 rounded-xl border-2 border-dark bg-purple text-dark text-[13px] font-bold
+                                   shadow-[3px_3px_0_0_#1a1a1a] hover:-translate-y-0.5
+                                   active:translate-y-0.5 active:shadow-none
+                                   disabled:opacity-40 disabled:shadow-none disabled:pointer-events-none transition">
+                            {{ pwSaving ? 'กำลังบันทึก...' : 'เปลี่ยนรหัสผ่าน' }}
+                        </button>
+                    </div>
+                </form>
 
                 <!-- ---------- การแจ้งเตือน ---------- -->
                 <div v-else-if="activeTab === 'notifications'" class="max-w-[520px]">

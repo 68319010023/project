@@ -54,7 +54,12 @@ async function handleLogin() {
 
     } catch (err) {
         console.error("LOGIN CATCH:", err)
-        errorMsg.value = err.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+        errorMsg.value =
+            err?.status === 429
+                ? 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่แล้วลองใหม่'
+                : /confirm/i.test(err?.message || '')
+                    ? 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
+                    : 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
     } finally {
         loading.value = false
     }
@@ -62,16 +67,17 @@ async function handleLogin() {
 </script>
 
 <template>
-    <div class="auth-page min-h-screen flex items-start sm:items-center justify-center px-4 sm:px-6 pt-24 pb-8 sm:py-10 font-mitr">
+    <div
+        class="auth-page min-h-screen flex items-start sm:items-center justify-center px-4 sm:px-6 pt-24 pb-8 sm:py-10 font-mitr">
         <router-link to="/" class="auth-home-link">กลับหน้าแรก</router-link>
-        <div class="relative z-10 bg-white border-3 border-dark rounded-2xl shadow-offset max-w-[420px] w-full p-5 sm:p-8">
+        <div
+            class="relative z-10 bg-white border-3 border-dark rounded-2xl shadow-offset max-w-[420px] w-full p-5 sm:p-8">
             <h1 class="font-mali font-bold text-2xl text-center mb-6">เข้าสู่ระบบ</h1>
 
             <form @submit.prevent="handleLogin" novalidate class="flex flex-col gap-4">
                 <div>
                     <label class="text-[13px] font-semibold">อีเมล</label>
-                    <input v-model="email" type="email"
-                        class="w-full mt-1 px-3 py-2.5 rounded-lg border-2 text-[14px]"
+                    <input v-model="email" type="email" class="w-full mt-1 px-3 py-2.5 rounded-lg border-2 text-[14px]"
                         :class="fieldErrors.email ? 'border-danger' : 'border-dark'" />
                 </div>
                 <div>
@@ -79,6 +85,10 @@ async function handleLogin() {
                     <input v-model="password" type="password"
                         class="w-full mt-1 px-3 py-2.5 rounded-lg border-2 text-[14px]"
                         :class="fieldErrors.password ? 'border-danger' : 'border-dark'" />
+                    <div class="flex justify-end mt-1.5">
+                        <router-link to="/forgot-password"
+                            class="text-purple font-semibold text-[12.5px] hover:underline">ลืมรหัสผ่าน?</router-link>
+                    </div>
                 </div>
 
                 <button type="submit" :disabled="loading"
@@ -87,14 +97,18 @@ async function handleLogin() {
                 </button>
             </form>
 
-            <p v-if="errorMsg" class="error-pop text-danger text-[13px] text-center mt-4 bg-red-50 border-2 border-danger rounded-lg py-2 px-3">
+            <p v-if="errorMsg"
+                class="error-pop text-danger text-[13px] text-center mt-4 bg-red-50 border-2 border-danger rounded-lg py-2 px-3">
                 {{ errorMsg }}
             </p>
 
             <p class="text-center text-[13px] text-gray mt-6">
                 ยังไม่มีบัญชี?
                 <router-link to="/register" class="text-purple font-semibold">สมัครสมาชิก</router-link>
+                <router-link to="/forgot-password"
+                    class="text-purple font-semibold text-[13px]">ลืมรหัสผ่าน?</router-link>
             </p>
+
         </div>
     </div>
 </template>
