@@ -136,6 +136,10 @@ function handleSubmit() {
     return
   }
 
+  if (isLate(quizDetail.value?.due_date)) {
+    submitError.value = 'เลยกำหนดส่งแบบทดสอบนี้แล้ว ไม่สามารถส่งได้'
+    return
+  }
   showConfirm.value = true
 }
 
@@ -312,7 +316,8 @@ onMounted(async () => {
         <!-- ยังไม่ส่ง: แถบความคืบหน้า (ลอยติดบน) + ตัวนำทางข้อ -->
         <!-- ============================================================ -->
         <template v-if="!hasSubmitted && !quizQuestionsLoading && totalQuestions > 0">
-          <div class="sticky top-3 z-10 bg-white border-[3px] border-dark rounded-2xl shadow-[4px_4px_0_#1a1a1a] px-4 py-3">
+          <div
+            class="sticky top-3 z-10 bg-white border-[3px] border-dark rounded-2xl shadow-[4px_4px_0_#1a1a1a] px-4 py-3">
             <div class="flex items-center justify-between text-[13px] mb-2">
               <span class="font-semibold text-dark">ตอบแล้ว</span>
               <span class="font-mono font-bold text-dark">{{ answeredCount }}/{{ totalQuestions }} ข้อ</span>
@@ -334,8 +339,10 @@ onMounted(async () => {
               </button>
             </div>
             <p class="text-[11.5px] text-gray mt-2">
-              <span class="inline-block w-2.5 h-2.5 rounded-sm border border-dark bg-[#c8e6c9] align-middle mr-1" />ตอบแล้ว
-              <span class="inline-block w-2.5 h-2.5 rounded-sm border border-dark bg-[#ffd699] align-middle ml-3 mr-1" />ยังไม่ตอบ
+              <span
+                class="inline-block w-2.5 h-2.5 rounded-sm border border-dark bg-[#c8e6c9] align-middle mr-1" />ตอบแล้ว
+              <span
+                class="inline-block w-2.5 h-2.5 rounded-sm border border-dark bg-[#ffd699] align-middle ml-3 mr-1" />ยังไม่ตอบ
             </p>
           </div>
         </template>
@@ -367,13 +374,15 @@ onMounted(async () => {
 
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1.5">
-                      <span class="border-2 border-dark rounded-2xl px-2.5 py-0.5 font-mono text-[11px] font-bold text-dark"
+                      <span
+                        class="border-2 border-dark rounded-2xl px-2.5 py-0.5 font-mono text-[11px] font-bold text-dark"
                         :class="q.type === 'essay' ? 'bg-orange' : 'bg-purple-light'">
                         {{ q.type === 'essay' ? 'อัตนัย' : 'ปรนัย' }}
                       </span>
                       <span class="font-mono text-[11px] text-gray whitespace-nowrap">{{ q.points }} คะแนน</span>
                     </div>
-                    <p class="font-mali font-bold text-[16px] text-dark whitespace-pre-wrap break-words">{{ q.question }}</p>
+                    <p class="font-mali font-bold text-[16px] text-dark whitespace-pre-wrap break-words">{{ q.question
+                      }}</p>
                   </div>
                 </div>
 
@@ -381,8 +390,7 @@ onMounted(async () => {
                 <div v-if="q.type !== 'essay'" class="flex flex-col gap-2.5">
                   <label v-for="(c, ci) in q.choices" :key="ci" class="block cursor-pointer">
                     <input type="radio" class="sr-only peer" :name="`q-${q.id}`" :value="ci" v-model="answers[q.id]" />
-                    <div
-                      class="flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-2.5 text-[14px] text-dark transition
+                    <div class="flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-2.5 text-[14px] text-dark transition
                              peer-focus-visible:ring-2 peer-focus-visible:ring-dark peer-focus-visible:ring-offset-2"
                       :class="answers[q.id] === ci
                         ? 'bg-purple-light shadow-[3px_3px_0_#1a1a1a] -translate-y-0.5'
@@ -417,7 +425,8 @@ onMounted(async () => {
                   <p class="font-semibold text-[14px] text-dark whitespace-pre-wrap break-words min-w-0">
                     {{ startIndex + i + 1 }}. {{ q.question }}
                   </p>
-                  <span class="shrink-0 font-mono text-[11.5px] font-bold border-2 border-dark rounded-lg px-2 py-0.5 bg-white">
+                  <span
+                    class="shrink-0 font-mono text-[11.5px] font-bold border-2 border-dark rounded-lg px-2 py-0.5 bg-white">
                     {{ answerFor(q.id)?.points_awarded ?? 0 }}/{{ q.points }} คะแนน
                   </span>
                 </div>
@@ -434,7 +443,8 @@ onMounted(async () => {
 
                 <!-- อัตนัย -->
                 <template v-else>
-                  <p class="text-[13px] text-dark mt-2.5 whitespace-pre-wrap bg-gray-light rounded-lg border-2 border-dark/10 p-2.5">
+                  <p
+                    class="text-[13px] text-dark mt-2.5 whitespace-pre-wrap bg-gray-light rounded-lg border-2 border-dark/10 p-2.5">
                     {{ answerFor(q.id)?.answer || '(ไม่ได้ตอบ)' }}
                   </p>
                   <p v-if="answerFor(q.id)?.points_awarded === null || answerFor(q.id)?.points_awarded === undefined"
@@ -448,7 +458,8 @@ onMounted(async () => {
             <!-- เปลี่ยนหน้า -->
             <div v-if="totalPages > 1" class="flex flex-col items-center gap-2">
               <div class="flex items-center justify-center gap-2">
-                <button type="button" aria-label="หน้าก่อนหน้า" :disabled="currentPage === 1" @click="setPage(currentPage - 1)"
+                <button type="button" aria-label="หน้าก่อนหน้า" :disabled="currentPage === 1"
+                  @click="setPage(currentPage - 1)"
                   class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
                          hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
                   <ChevronLeft :size="16" :stroke-width="3" />
@@ -456,8 +467,7 @@ onMounted(async () => {
 
                 <button v-for="p in totalPages" :key="p" type="button" @click="setPage(p)"
                   :aria-current="p === currentPage ? 'page' : undefined"
-                  class="min-w-[36px] h-9 px-2 rounded-lg border-2 border-dark text-[13px] font-bold transition"
-                  :class="p === currentPage
+                  class="min-w-[36px] h-9 px-2 rounded-lg border-2 border-dark text-[13px] font-bold transition" :class="p === currentPage
                     ? 'bg-orange text-dark'
                     : 'bg-white text-dark hover:bg-gray-light hover:-translate-y-0.5'">
                   {{ p }}
@@ -470,13 +480,13 @@ onMounted(async () => {
                 </button>
               </div>
               <p class="text-[12px] text-gray font-mono">
-                หน้า {{ currentPage }}/{{ totalPages }} · ข้อ {{ startIndex + 1 }}-{{ Math.min(startIndex + pageSize, totalQuestions) }}
+                หน้า {{ currentPage }}/{{ totalPages }} · ข้อ {{ startIndex + 1 }}-{{ Math.min(startIndex + pageSize,
+                totalQuestions) }}
               </p>
             </div>
 
             <!-- ปุ่มไปหน้าถัดไป (ยังไม่ถึงหน้าสุดท้าย) -->
-            <button v-if="!hasSubmitted && !isLastPage" type="button" @click="setPage(currentPage + 1)"
-              class="w-full flex items-center justify-center gap-2 border-[3px] border-dark bg-orange p-2.5 text-[14px] text-dark rounded-xl font-bold
+            <button v-if="!hasSubmitted && !isLastPage" type="button" @click="setPage(currentPage + 1)" class="w-full flex items-center justify-center gap-2 border-[3px] border-dark bg-orange p-2.5 text-[14px] text-dark rounded-xl font-bold
                      shadow-[4px_4px_0_#1a1a1a] hover:-translate-y-0.5 transition">
               หน้าถัดไป
               <ChevronRight :size="16" :stroke-width="3" />
@@ -490,13 +500,14 @@ onMounted(async () => {
                 <span class="font-mono font-bold text-dark">{{ answeredCount }}/{{ totalQuestions }} ข้อ</span>
               </div>
 
-              <p v-if="unansweredCount > 0" class="text-[12.5px] text-dark bg-[#fff0d6] border-2 border-dark rounded-lg px-3 py-1.5">
+              <p v-if="unansweredCount > 0"
+                class="text-[12.5px] text-dark bg-[#fff0d6] border-2 border-dark rounded-lg px-3 py-1.5">
                 ยังไม่ได้ตอบ {{ unansweredCount }} ข้อ ใช้ปุ่ม "ไปยังข้อ" ด้านบนเพื่อกลับไปตอบได้
               </p>
 
               <p v-if="submitError" class="text-[12px] text-red-600">{{ submitError }}</p>
 
-              <button type="button" @click="handleSubmit" :disabled="submitting"
+              <button type="button" @click="handleSubmit" :disabled="submitting || isLate(quizDetail.due_date)"
                 class="w-full flex items-center justify-center gap-2 text-center border-dark border-[3px] bg-blue-600 p-2.5 text-[14px] text-white rounded-xl font-bold
                        shadow-[4px_4px_0_#1a1a1a] hover:bg-blue-500 hover:-translate-y-0.5 transition disabled:opacity-50 disabled:pointer-events-none">
                 <Send :size="15" :stroke-width="2.5" />
@@ -505,8 +516,7 @@ onMounted(async () => {
             </div>
 
             <!-- หลังส่งแล้ว: ปุ่มกลับ -->
-            <router-link v-if="hasSubmitted" :to="{ name: 'classroom-detail', params: { id: classroomId } }"
-              class="w-full text-center border-[3px] border-dark rounded-xl px-3 py-2.5 font-bold text-[14px] bg-white
+            <router-link v-if="hasSubmitted" :to="{ name: 'classroom-detail', params: { id: classroomId } }" class="w-full text-center border-[3px] border-dark rounded-xl px-3 py-2.5 font-bold text-[14px] bg-white
                      shadow-[4px_4px_0_#1a1a1a] hover:-translate-y-0.5 transition">
               กลับหน้าห้องเรียน
             </router-link>
