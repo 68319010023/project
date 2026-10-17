@@ -12,6 +12,7 @@ import TabNav from '../../components/TabNav.vue'
 import Overview from '../../components/teacher/Overview.vue'
 import ClassroomMembers from '../../components/teacher/Members.vue'
 import ClassroomAssignments from '../../components/teacher/Assignments.vue'
+import AiClassroomSummary from '../../components/teacher/AiSummary.vue'
 
 const props = defineProps({
   classroomId: { type: String, required: true },
@@ -131,6 +132,7 @@ async function handleDeleteConfirm() {
         :fetch-submission-items="fetchSubmissionItems" :format-date="formatDate" :is-late="isLate"
         @reload-assignments="loadAssignments" @reload-submissions="loadSubmissions"
         @reload-quizzes="() => { loadQuizzes(); loadQuizSubmissions() }" />
+      <AiClassroomSummary v-if="activeTab === 'overview'" :classroom-id="classroomId" />
     </template>
     <EditClassroomModal v-if="showEditModal && classroomForModal" :classroom="classroomForModal"
       @saved="handleEditSaved" @close="showEditModal = false" />
