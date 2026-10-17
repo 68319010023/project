@@ -1,14 +1,16 @@
 <script setup>
+import { computed } from 'vue'
 import { useAuth } from '../composables/useAuth'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { Settings, ChevronRight, Search, X } from 'lucide-vue-next'
 import NotificationBell from './NotificationBell.vue'
 const emit = defineEmits(['open-create', 'open-join', 'update:searchQuery'])
 
 const { profile } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
-defineProps({
+const props = defineProps({
     searchQuery: { type: String, default: '' },
     showSearch: { type: Boolean, default: true },
     // [{ label: 'หน้ารวมห้องเรียน', to: '/student' }, { label: 'ชื่อห้อง' }]
@@ -19,6 +21,27 @@ defineProps({
     }
 })
 
+
+const effectiveBreadcrumb = computed(() => {
+    if (route.path === '/settings') {
+      if (route.query.from === 'profile') {
+                    const homePath = profile.value?.role === 'teacher' ? '/teacher' : '/student'
+           return [
+               { label: 'หน้ารวมห้องเรียน', to: homePath },
+               { label: 'โปรไฟล์', to: '/profile' },
+               { label: 'หน้าตั้งค่า' },
+           ]
+        }
+       
+       return [
+            { label: 'โปรไฟล์ของฉัน', to: '/profile' },
+           { label: 'หน้าตั้งค่า' },
+        ]
+     }
+    
+    return props.breadcrumb
+})
+
 function goToProfile() {
     router.push('/profile')
 }
@@ -26,6 +49,7 @@ function goToSettings() {
     router.push('/settings')
 }
 </script>
+
 
 <template>
     <div class="sticky top-0 z-30 bg-dark border-b-4 border-purple h-[90px] flex items-center gap-4 px-6">
@@ -38,7 +62,7 @@ function goToSettings() {
             </div>
         </div>
         <div class="hidden md:flex items-center gap-1.5 ml-6 min-w-0">
-            <template v-for="(crumb, i) in breadcrumb" :key="i">
+            <template v-for="(crumb, i) in effectiveBreadcrumb" :key="i">
                 <router-link v-if="crumb.to" :to="crumb.to"
                     class="px-3.5 py-2 rounded-lg text-[14px] text-gray-300 font-semibold hover:bg-white/10 hover:text-white transition-colors whitespace-nowrap">
                     {{ crumb.label }}
@@ -47,7 +71,7 @@ function goToSettings() {
                     class="px-3.5 py-2 rounded-lg text-[14px] bg-purple text-dark font-semibold truncate max-w-[220px]">
                     {{ crumb.label }}
                 </span>
-                <ChevronRight v-if="i < breadcrumb.length - 1" :size="14" :stroke-width="2.5"
+                <ChevronRight v-if="i < effectiveBreadcrumb.length - 1" :size="14" :stroke-width="2.5"
                     class="text-gray-500 shrink-0" />
             </template>
         </div>

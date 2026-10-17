@@ -15,6 +15,20 @@ const { profile, updateProfile } = useAuth()
 const homePath = computed(() => (profile.value?.role === 'teacher' ? '/teacher' : '/student'))
 const notificationsOn = computed(() => !!profile.value?.notifications_enabled)
 
+
+const breadcrumb = computed(() =>
+    route.query.from === 'profile'
+        ? [
+            { label: 'หน้ารวมห้องเรียน', to: homePath.value },
+            { label: 'โปรไฟล์ของฉัน', to: '/profile' },
+            { label: 'หน้าตั้งค่า' },
+        ]
+        : [
+            { label: 'โปรไฟล์ของฉัน', to: '/profile' },
+            { label: 'หน้าตั้งค่า' },
+        ]
+)
+
 // ============ หมวดใน sidebar (เก็บหมวดที่เปิดอยู่ใน URL: /settings?tab=...) ============
 const tabs = [
     { key: 'account', label: 'บัญชี', icon: User, desc: 'แก้ไขรูปโปรไฟล์ ชื่อ และอีเมลของบัญชี' },
@@ -269,10 +283,7 @@ const inputClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-dark bg-whit
 
 <template>
     <div class="bg-gray-light min-h-screen font-mitr">
-        <AppNavbar :show-search="false" :breadcrumb="[
-            { label: 'หน้ารวมห้องเรียน', to: homePath },
-            { label: 'หน้าตั้งค่า' }
-        ]" />
+              <AppNavbar :show-search="false" :breadcrumb="breadcrumb" />
 
         <main class="max-w-[960px] mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6 items-start">
 

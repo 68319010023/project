@@ -7,7 +7,7 @@ import { getClassroomColorById } from '../../lib/classroomColors'
 import AppNavbar from '../../components/AppNavbar.vue'
 import {
   ArrowLeft, Calendar, Star, Paperclip, Link2, ExternalLink, Check, Pencil,
-  ClipboardList, Users, Clock, CheckCircle2, Search, X,
+  ClipboardList, Users, Clock, CheckCircle2, Search, X, ImageIcon,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -24,12 +24,59 @@ const {
   getAssignmentAttachmentUrl,
 } = useClassroomDetail(classroomId)
 
-const openingAttachment = ref(false)
-async function openAttachment() {
-  if (!assignmentDetail.value?.attachment_url) return
-  openingAttachment.value = true
-  const url = await getAssignmentAttachmentUrl(assignmentDetail.value.attachment_url)
-  openingAttachment.value = false
+// --- เอกสารประกอบที่ครูแนบไว้ (หลายไฟล์/ลิงก์) ---
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']
+
+function isImageLabel(label) {
+  if (!label) return false
+  const ext = label.includes('.') ? label.slice(label.lastIndexOf('.') + 1).toLowerCase() : ''
+  return IMAGE_EXTENSIONS.includes(ext)
+}
+
+const teacherAttachments = ref([]) // [{ id, type, url, label }]
+const teacherPreviewUrls = ref({}) // { [id]: signedUrl } เฉพาะไฟล์รูปภาพ
+const openingAttachmentId = ref(null)
+
+async function loadTeacherAttachments() {
+  const { data, error } = await supabase
+    .from('assignment_attachments')
+    .select('id, type, url, label, created_at')
+    .eq('assignment_id', assignmentId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
+
+  let list = error ? [] : (data || [])
+
+  // fallback: งานเก่าที่ยังไม่ได้ย้ายข้อมูล ใช้ไฟล์เดียวจากคอลัมน์เดิม
+  if (list.length === 0 && assignmentDetail.value?.attachment_url) {
+    const url = assignmentDetail.value.attachment_url
+    list = [{
+      id: 'legacy',
+      type: /^https?:\/\//.test(url) ? 'link' : 'file',
+      url,
+      label: assignmentDetail.value.attachment_name,
+    }]
+  }
+
+  teacherAttachments.value = list
+
+  for (const att of list) {
+    if (att.type === 'file' && isImageLabel(att.label)) {
+      const signed = await getAssignmentAttachmentUrl(att.url)
+      if (signed) teacherPreviewUrls.value = { ...teacherPreviewUrls.value, [att.id]: signed }
+    }
+  }
+}
+
+async function openTeacherAttachment(att) {
+  if (att.type === 'link') {
+    window.open(att.url, '_blank')
+    return
+  }
+  openingAttachmentId.value = att.id
+  const url = await getAssignmentAttachmentUrl(att.url)
+  openingAttachmentId.value = null
+
   if (url) {
     window.open(url, '_blank')
   } else {
@@ -186,6 +233,7 @@ async function openItem(item) {
 
 onMounted(async () => {
   await loadAssignmentDetail(assignmentId)
+  await loadTeacherAttachments()
   await loadSubmissions()
   await loadAllItems()
 })
@@ -246,29 +294,46 @@ onMounted(async () => {
       </p>
 
       <template v-else-if="assignmentDetail">
-        <!-- ===== รายละเอียดงาน + ไฟล์แนบ ===== -->
-        <div v-if="assignmentDetail.description || assignmentDetail.attachment_url"
+               <!-- ===== รายละเอียดงาน + ไฟล์แนบ ===== -->
+        <div v-if="assignmentDetail.description || teacherAttachments.length > 0"
           class="bg-white border-[3px] border-dark rounded-2xl shadow-[6px_6px_0_#1a1a1a] p-6 mb-8">
           <template v-if="assignmentDetail.description">
             <h2 class="font-mali font-bold text-[16px] text-dark mb-2">รายละเอียดงาน</h2>
             <p class="text-[14px] text-dark leading-relaxed whitespace-pre-wrap">{{ assignmentDetail.description }}</p>
           </template>
 
-          <div v-if="assignmentDetail.attachment_url"
+          <div v-if="teacherAttachments.length > 0"
             :class="assignmentDetail.description ? 'mt-5 pt-5 border-t-[3px] border-dashed border-dark/20' : ''">
-            <p class="text-[12px] font-bold text-gray font-mono uppercase mb-2.5">เอกสารประกอบที่แนบไว้</p>
-            <button type="button" @click="openAttachment" :disabled="openingAttachment"
-              class="w-full flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-3 bg-purple-light
-                     shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 hover:bg-purple transition disabled:opacity-50">
-              <Paperclip :size="18" :stroke-width="2.5" class="shrink-0" />
-              <div class="flex-1 min-w-0 text-left">
-                <p class="text-[13.5px] font-bold text-dark truncate">
-                  {{ assignmentDetail.attachment_name || 'เอกสารประกอบ' }}
-                </p>
-                <p class="text-[11.5px] text-gray">ไฟล์ที่คุณแนบไว้</p>
-              </div>
-              <ExternalLink :size="16" :stroke-width="2.5" class="shrink-0" />
-            </button>
+            <p class="text-[12px] font-bold text-gray font-mono uppercase mb-2.5">
+              เอกสารประกอบที่แนบไว้ ({{ teacherAttachments.length }})
+            </p>
+
+            <ul class="flex flex-col gap-2.5">
+              <li v-for="att in teacherAttachments" :key="att.id">
+                <button type="button" @click="openTeacherAttachment(att)" :disabled="openingAttachmentId === att.id"
+                  class="w-full flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-3 bg-purple-light
+                         shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 hover:bg-purple transition disabled:opacity-50">
+                  <div
+                    class="w-11 h-11 shrink-0 rounded-lg border-2 border-dark bg-white overflow-hidden flex items-center justify-center">
+                    <img v-if="teacherPreviewUrls[att.id]" :src="teacherPreviewUrls[att.id]"
+                      class="w-full h-full object-cover" />
+                    <ImageIcon v-else-if="att.type === 'file' && isImageLabel(att.label)" :size="18" :stroke-width="2"
+                      class="text-gray" />
+                    <Link2 v-else-if="att.type === 'link'" :size="18" :stroke-width="2.5" />
+                    <Paperclip v-else :size="18" :stroke-width="2.5" />
+                  </div>
+                  <div class="flex-1 min-w-0 text-left">
+                    <p class="text-[13.5px] font-bold text-dark truncate">
+                      {{ att.label || 'เอกสารประกอบ' }}
+                    </p>
+                    <p class="text-[11.5px] text-gray">
+                      {{ att.type === 'link' ? 'กดเพื่อเปิดลิงก์' : 'ไฟล์ที่คุณแนบไว้' }}
+                    </p>
+                  </div>
+                  <ExternalLink :size="16" :stroke-width="2.5" class="shrink-0" />
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
 

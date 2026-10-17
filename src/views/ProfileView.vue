@@ -141,6 +141,7 @@ onMounted(() => {
 
                 <!-- เมนูนำทาง -->
                 <nav class="bg-white border-3 border-dark rounded-2xl shadow-offset p-2 flex flex-col gap-1">
+                
                     <a href="#my-classrooms"
                         class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-dark text-white font-semibold text-[13.5px] transition">
                         <LayoutGrid :size="16" :stroke-width="2.5" />
@@ -151,7 +152,7 @@ onMounted(() => {
                         </span>
                     </a>
                     <div class="h-0.5 bg-dark/10 my-1 mx-2"></div>
-                    <router-link to="/settings"
+                    <router-link :to="{ path: '/settings', query: { from: 'profile' } }"
                         class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-dark font-semibold text-[13.5px] hover:bg-dark/15 transition">
                         <Settings :size="16" :stroke-width="2.5" />
                         ตั้งค่า

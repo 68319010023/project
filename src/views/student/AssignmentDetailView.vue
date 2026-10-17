@@ -35,7 +35,57 @@ function isImageLabel(label) {
   const ext = label.includes('.') ? label.slice(label.lastIndexOf('.') + 1).toLowerCase() : ''
   return IMAGE_EXTENSIONS.includes(ext)
 }
+// --- เอกสารประกอบจากครู (หลายไฟล์/ลิงก์) ---
+const teacherAttachments = ref([]) // [{ id, type, url, label }]
+const teacherPreviewUrls = ref({}) // { [id]: signedUrl } เฉพาะไฟล์รูปภาพ
+const openingAttachmentId = ref(null)
 
+async function loadTeacherAttachments() {
+  const { data, error } = await supabase
+    .from('assignment_attachments')
+    .select('id, type, url, label, created_at')
+    .eq('assignment_id', assignmentId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
+
+  let list = error ? [] : (data || [])
+
+  // fallback: งานเก่าที่ยังไม่ได้ย้ายข้อมูล ใช้ไฟล์เดียวจากคอลัมน์เดิม
+  if (list.length === 0 && assignmentDetail.value?.attachment_url) {
+    const url = assignmentDetail.value.attachment_url
+    list = [{
+      id: 'legacy',
+      type: /^https?:\/\//.test(url) ? 'link' : 'file',
+      url,
+      label: assignmentDetail.value.attachment_name,
+    }]
+  }
+
+  teacherAttachments.value = list
+
+  for (const att of list) {
+    if (att.type === 'file' && isImageLabel(att.label)) {
+      const signed = await getAssignmentAttachmentUrl(att.url)
+      if (signed) teacherPreviewUrls.value = { ...teacherPreviewUrls.value, [att.id]: signed }
+    }
+  }
+}
+
+async function openTeacherAttachment(att) {
+  if (att.type === 'link') {
+    window.open(att.url, '_blank')
+    return
+  }
+  openingAttachmentId.value = att.id
+  const url = await getAssignmentAttachmentUrl(att.url)
+  openingAttachmentId.value = null
+
+  if (url) {
+    window.open(url, '_blank')
+  } else {
+    alert('เปิดไฟล์แนบไม่สำเร็จ ลองใหม่อีกครั้ง')
+  }
+}
 // --- staging: ยังไม่ยิงขึ้น DB จนกว่าจะกด "ส่ง" ---
 // pendingFiles แต่ละรายการเป็นได้ 2 แบบ:
 //   ใหม่จริง:      { tempId, file, previewUrl }
@@ -51,8 +101,7 @@ const fileInput = ref(null)
 const submitting = ref(false)
 const submitError = ref('')
 
-// --- ไฟล์แนบโจทย์ (ของครู) ---
-const openingAttachment = ref(false)
+
 
 // --- ยกเลิกการส่ง ---
 const unsubmitting = ref(false)
@@ -60,13 +109,9 @@ const confirmingUnsubmit = ref(false)
 
 // --- preview url ของไฟล์รูปที่ส่งไปแล้ว (ต้องขอ signed url เพราะ bucket private) ---
 const itemPreviewUrls = ref({}) // { [itemId]: signedUrl }
-const attachmentPreviewUrl = ref(null)
+
 const hasSubmitted = computed(() => submissionItems.value.length > 0)
-const isAttachmentLink = computed(() => /^https?:\/\//.test(assignmentDetail.value?.attachment_url || ''))
-const isAttachmentImage = computed(() => {
-  if (isAttachmentLink.value) return false
-  return isImageLabel(assignmentDetail.value?.attachment_name)
-})
+
 const isGraded = computed(
   () => mySubmission.value?.score !== null && mySubmission.value?.score !== undefined
 )
@@ -141,18 +186,7 @@ watch(submissionItems, async (items) => {
   }
 }, { immediate: true })
 
-async function openAttachment() {
-  if (!assignmentDetail.value?.attachment_url) return
-  openingAttachment.value = true
-  const url = await getAssignmentAttachmentUrl(assignmentDetail.value.attachment_url)
-  openingAttachment.value = false
 
-  if (url) {
-    window.open(url, '_blank')
-  } else {
-    alert('เปิดไฟล์แนบไม่สำเร็จ ลองใหม่อีกครั้ง')
-  }
-}
 
 // --- staging: เพิ่ม/ลบไฟล์ ---
 function triggerFilePicker() {
@@ -374,10 +408,7 @@ onMounted(async () => {
 
   await loadAssignmentDetail(assignmentId)
   await loadMySubmission(assignmentId, user.value.id)
-
-  if (isAttachmentImage.value && assignmentDetail.value?.attachment_url) {
-    attachmentPreviewUrl.value = await getAssignmentAttachmentUrl(assignmentDetail.value.attachment_url)
-  }
+  await loadTeacherAttachments()          // ✅ เรียกหลังโหลด assignmentDetail แล้ว (fallback งานเก่าใช้ได้)
 })
 </script>
 
@@ -463,29 +494,38 @@ onMounted(async () => {
           </p>
           <p v-else class="text-[13.5px] text-gray">ไม่มีรายละเอียดเพิ่มเติม</p>
 
-          <!-- ไฟล์แนบโจทย์ (ของครู) -->
-          <div v-if="assignmentDetail.attachment_url" class="mt-6 pt-5 border-t-[3px] border-dashed border-dark/20">
-            <p class="text-[12px] font-bold text-gray font-mono uppercase mb-2.5">เอกสารประกอบจากครู</p>
+                 <!-- เอกสารประกอบจากครู (หลายไฟล์/ลิงก์) -->
+          <div v-if="teacherAttachments.length > 0" class="mt-6 pt-5 border-t-[3px] border-dashed border-dark/20">
+            <p class="text-[12px] font-bold text-gray font-mono uppercase mb-2.5">
+              เอกสารประกอบจากครู ({{ teacherAttachments.length }})
+            </p>
 
-            <button type="button" @click="openAttachment" :disabled="openingAttachment"
-              class="w-full flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-3 bg-purple-light
-                     shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 hover:bg-purple transition disabled:opacity-50">
-              <div
-                class="w-11 h-11 shrink-0 rounded-lg border-2 border-dark bg-white overflow-hidden flex items-center justify-center">
-                <img v-if="isAttachmentImage && attachmentPreviewUrl" :src="attachmentPreviewUrl"
-                  class="w-full h-full object-cover" />
-                <ImageIcon v-else-if="isAttachmentImage" :size="18" :stroke-width="2" class="text-gray" />
-                <Link2 v-else-if="isAttachmentLink" :size="18" :stroke-width="2.5" />
-                <Paperclip v-else :size="18" :stroke-width="2.5" />
-              </div>
-              <div class="flex-1 min-w-0 text-left">
-                <p class="text-[13.5px] font-bold text-dark truncate">
-                  {{ assignmentDetail.attachment_name || 'เอกสารประกอบ' }}
-                </p>
-                <p class="text-[11.5px] text-gray">กดเพื่อเปิดไฟล์จากครู</p>
-              </div>
-              <ExternalLink :size="16" :stroke-width="2.5" class="shrink-0" />
-            </button>
+            <ul class="flex flex-col gap-2.5">
+              <li v-for="att in teacherAttachments" :key="att.id">
+                <button type="button" @click="openTeacherAttachment(att)" :disabled="openingAttachmentId === att.id"
+                  class="w-full flex items-center gap-3 border-[3px] border-dark rounded-xl px-4 py-3 bg-purple-light
+                         shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 hover:bg-purple transition disabled:opacity-50">
+                  <div
+                    class="w-11 h-11 shrink-0 rounded-lg border-2 border-dark bg-white overflow-hidden flex items-center justify-center">
+                    <img v-if="teacherPreviewUrls[att.id]" :src="teacherPreviewUrls[att.id]"
+                      class="w-full h-full object-cover" />
+                    <ImageIcon v-else-if="att.type === 'file' && isImageLabel(att.label)" :size="18" :stroke-width="2"
+                      class="text-gray" />
+                    <Link2 v-else-if="att.type === 'link'" :size="18" :stroke-width="2.5" />
+                    <Paperclip v-else :size="18" :stroke-width="2.5" />
+                  </div>
+                  <div class="flex-1 min-w-0 text-left">
+                    <p class="text-[13.5px] font-bold text-dark truncate">
+                      {{ att.label || 'เอกสารประกอบ' }}
+                    </p>
+                    <p class="text-[11.5px] text-gray">
+                      {{ att.type === 'link' ? 'กดเพื่อเปิดลิงก์' : 'กดเพื่อเปิดไฟล์จากครู' }}
+                    </p>
+                  </div>
+                  <ExternalLink :size="16" :stroke-width="2.5" class="shrink-0" />
+                </button>
+              </li>
+            </ul>
           </div>
         </div>
 
