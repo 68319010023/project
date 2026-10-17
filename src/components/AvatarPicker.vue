@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { Check } from 'lucide-vue-next'
 
 const props = defineProps({
     modelValue: { type: String, default: null }
@@ -17,23 +18,26 @@ function select(path) {
 </script>
 
 <template>
-    <div class="grid grid-cols-2 min-[360px]:grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 min-[360px]:grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 p-1">
         <button
-            v-for="avatar in avatars"
+            v-for="(avatar, i) in avatars"
             :key="avatar"
             type="button"
             @click="select(avatar)"
-            class="relative rounded-2xl border-3 overflow-hidden transition hover:-translate-y-1"
+            :aria-pressed="modelValue === avatar"
+            :aria-label="`อวตาร ${i + 1}`"
+            class="relative rounded-xl border-2 overflow-hidden transition hover:-translate-y-0.5
+                   focus:outline-none focus-visible:ring-2 focus-visible:ring-purple"
             :class="modelValue === avatar
-                ? 'border-orange shadow-offset-sm'
-                : 'border-dark shadow-offset-sm opacity-80 hover:opacity-100'"
+                ? 'border-dark ring-4 ring-orange'
+                : 'border-dark/30 hover:border-dark'"
         >
-            <img :src="avatar" class="w-full aspect-square object-cover" alt="อวตาร" />
+            <img :src="avatar" class="w-full aspect-square object-cover" alt="" />
             <span
                 v-if="modelValue === avatar"
-                class="absolute top-1 right-1 bg-orange border-2 border-dark rounded-full text-[10px] font-bold px-1.5 py-0.5"
+                class="absolute top-1 right-1 bg-orange border-2 border-dark rounded-full p-0.5 flex items-center justify-center"
             >
-                ✓
+                <Check :size="12" :stroke-width="3.5" class="text-dark" />
             </span>
         </button>
     </div>

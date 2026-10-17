@@ -1,15 +1,12 @@
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { Pencil, Check, X, LogOut, School, Mail, Settings, LayoutGrid, Layers, ChevronRight, ChevronLeft, Presentation, GraduationCap, Search } from 'lucide-vue-next'
+import { ref, computed, watch, onMounted } from 'vue'
+import { X, LogOut, School, Mail, Settings, LayoutGrid, Layers, ChevronRight, ChevronLeft, Presentation, GraduationCap, Search } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
 import AppNavbar from '../components/AppNavbar.vue'
 import LogoutModal from '../components/LogoutModal.vue'
 
-const { profile, updateProfile } = useAuth()
-
-const profileImageBucket = 'profile-images'
-const maxAvatarSize = 5 * 1024 * 1024
+const { profile } = useAuth()
 
 const isTeacher = computed(() => profile.value?.role === 'teacher')
 const homePath = computed(() => (isTeacher.value ? '/teacher' : '/student'))
@@ -29,92 +26,6 @@ const todayLabel = computed(() =>
 )
 
 const classroomsTitle = computed(() => (isTeacher.value ? 'ห้องเรียนที่สอนอยู่' : 'ห้องเรียนที่เข้าร่วม'))
-
-// --- แก้ไขชื่อ-นามสกุล ---
-const isEditingName = ref(false)
-const editName = ref('')
-const editLastname = ref('')
-const savingName = ref(false)
-const nameInput = ref(null)
-
-const canSaveName = computed(
-    () => !!editName.value.trim() && !!editLastname.value.trim() && !savingName.value
-)
-
-async function startEditName() {
-    if (!profile.value) return
-    editName.value = profile.value.name
-    editLastname.value = profile.value.lastname
-    isEditingName.value = true
-    await nextTick()
-    nameInput.value?.focus()
-    nameInput.value?.select()
-}
-function cancelEditName() {
-    isEditingName.value = false
-}
-async function saveEditName() {
-    if (!editName.value.trim() || !editLastname.value.trim()) return
-    savingName.value = true
-    await updateProfile({
-        name: editName.value.trim(),
-        lastname: editLastname.value.trim()
-    })
-    savingName.value = false
-    isEditingName.value = false
-}
-
-// --- เปลี่ยนรูปโปรไฟล์ ---
-const uploadingAvatar = ref(false)
-const avatarError = ref('')
-
-async function handleAvatarChange(event) {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    if (!profile.value) {
-        avatarError.value = 'ไม่พบข้อมูลโปรไฟล์ กรุณาลองใหม่อีกครั้ง'
-        event.target.value = ''
-        return
-    }
-
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        avatarError.value = 'กรุณาเลือกรูป JPG, PNG หรือ WebP'
-        event.target.value = ''
-        return
-    }
-    if (file.size > maxAvatarSize) {
-        avatarError.value = 'รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB'
-        event.target.value = ''
-        return
-    }
-
-    avatarError.value = ''
-    uploadingAvatar.value = true
-
-    try {
-        const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-        const filePath = `${profile.value.id}/${crypto.randomUUID()}.${extension}`
-
-        const { error: uploadError } = await supabase.storage
-            .from(profileImageBucket)
-            .upload(filePath, file, {
-                cacheControl: '3600',
-                contentType: file.type,
-                upsert: false
-            })
-        if (uploadError) throw uploadError
-
-        const { data } = supabase.storage.from(profileImageBucket).getPublicUrl(filePath)
-        await updateProfile({ img: data.publicUrl })
-    } catch (err) {
-        console.error('handleAvatarChange error:', err)
-        avatarError.value = 'อัปโหลดรูปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
-    } finally {
-        uploadingAvatar.value = false
-        event.target.value = ''
-    }
-}
 
 // --- ห้องเรียนที่เข้าร่วม/สอนอยู่ ---
 const classrooms = ref([])
@@ -166,9 +77,6 @@ const pagedClassrooms = computed(() => {
     return filteredClassrooms.value.slice(start, start + pageSize)
 })
 
-
-
-
 // ค้นหาใหม่ให้กลับไปหน้า 1 / ถ้าจำนวนหน้าลดลงให้ไม่เกินหน้าสุดท้าย
 watch(searchQuery, () => { currentPage.value = 1 })
 watch(totalPages, (n) => { if (currentPage.value > n) currentPage.value = n })
@@ -207,60 +115,14 @@ onMounted(() => {
                     <div class="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 pointer-events-none">
                     </div>
 
-                    <label class="relative cursor-pointer group inline-block">
-                        <div class="w-16 h-16 rounded-full border-3 border-white overflow-hidden bg-purple-light shrink-0
-                                   flex items-center justify-center font-mali font-bold text-lg text-dark">
-                            <img v-if="profile?.img" :src="profile.img" class="w-full h-full object-cover"
-                                alt="avatar" />
-                            <span v-else>{{ avatarInitials }}</span>
-                        </div>
-                        <div
-                            class="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Pencil :size="15" :stroke-width="2.5" class="text-white" />
-                        </div>
-                        <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
-                            :disabled="uploadingAvatar" @change="handleAvatarChange" />
-                    </label>
-                    <p v-if="uploadingAvatar" class="relative text-[11px] text-white/70 mt-2">กำลังอัปโหลด...</p>
-                    <p v-if="avatarError" class="relative text-[11px] text-red-300 mt-2">{{ avatarError }}</p>
+                    <div class="relative w-16 h-16 rounded-full border-3 border-white overflow-hidden bg-purple-light
+                                flex items-center justify-center font-mali font-bold text-lg text-dark">
+                        <img v-if="profile?.img" :src="profile.img" class="w-full h-full object-cover" alt="avatar" />
+                        <span v-else>{{ avatarInitials }}</span>
+                    </div>
 
                     <div class="relative mt-3">
-                        <div v-if="!isEditingName" class="flex items-center gap-1.5">
-                            <h2 class="font-mali font-bold text-[17px] truncate">{{ profile?.name }} {{
-                                profile?.lastname }}</h2>
-                            <button type="button" @click="startEditName"
-                                class="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center hover:bg-white/20 shrink-0 transition">
-                                <Pencil :size="11" :stroke-width="2.5" />
-                            </button>
-                        </div>
-                        <form v-else class="flex flex-col gap-3" @submit.prevent="saveEditName"
-                            @keydown.esc="cancelEditName">
-                            <label class="flex flex-col gap-1">
-                                <span class="text-[11.5px] text-white/70">ชื่อ</span>
-                                <input ref="nameInput" v-model="editName" type="text" placeholder="ชื่อ"
-                                    autocomplete="given-name" class="w-full px-3 py-2 rounded-lg border-2 border-white bg-white text-dark text-[13.5px]
-                                           outline-none focus:border-purple focus:ring-2 focus:ring-purple/60" />
-                            </label>
-                            <label class="flex flex-col gap-1">
-                                <span class="text-[11.5px] text-white/70">นามสกุล</span>
-                                <input v-model="editLastname" type="text" placeholder="นามสกุล"
-                                    autocomplete="family-name" class="w-full px-3 py-2 rounded-lg border-2 border-white bg-white text-dark text-[13.5px]
-                                           outline-none focus:border-purple focus:ring-2 focus:ring-purple/60" />
-                            </label>
-                            <div class="flex gap-2 mt-1">
-                                <button type="submit" :disabled="!canSaveName"
-                                    class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 border-white bg-purple text-dark text-[13px] font-bold
-                                           hover:bg-purple-light disabled:opacity-40 disabled:cursor-not-allowed transition">
-                                    <Check :size="14" :stroke-width="3" />
-                                    {{ savingName ? 'กำลังบันทึก...' : 'บันทึก' }}
-                                </button>
-                                <button type="button" @click="cancelEditName" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 border-white/60 text-white text-[13px] font-semibold
-                                           hover:bg-white/15 transition">
-                                    <X :size="14" :stroke-width="3" />
-                                    ยกเลิก
-                                </button>
-                            </div>
-                        </form>
+                        <h2 class="font-mali font-bold text-[17px] truncate">{{ profile?.name }} {{ profile?.lastname }}</h2>
 
                         <p class="mt-3 inline-flex items-center gap-1.5 text-[12px] text-white/70 truncate max-w-full">
                             <Mail :size="12" :stroke-width="2.5" class="shrink-0" />
@@ -359,7 +221,7 @@ onMounted(() => {
                             <Search :size="15" :stroke-width="2.5"
                                 class="absolute left-3 top-1/2 -translate-y-1/2 text-gray pointer-events-none" />
                             <input v-model="searchQuery" type="text" placeholder="ค้นหาห้องเรียน..." class="w-full pl-9 pr-8 py-2 rounded-lg border-2 border-dark bg-white text-[13px] text-dark
-                   placeholder:text-gray outline-none focus:bg-gray-light transition" />
+                                   placeholder:text-gray outline-none focus:bg-gray-light transition" />
                             <button v-if="searchQuery" type="button" @click="searchQuery = ''" aria-label="ล้างคำค้นหา"
                                 class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center hover:bg-orange transition">
                                 <X :size="12" :stroke-width="3" />
@@ -379,15 +241,14 @@ onMounted(() => {
                     <ul v-else class="flex flex-col gap-3">
                         <li v-for="c in pagedClassrooms" :key="c.id">
                             <router-link :to="{ name: 'classroom-detail', params: { id: c.id } }" class="group flex items-center gap-3 px-3.5 py-3 rounded-xl border-2 border-dark
-                   hover:bg-gray-light hover:-translate-y-0.5 transition">
+                                   hover:bg-gray-light hover:-translate-y-0.5 transition">
                                 <div
                                     class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
                                     <School :size="16" :stroke-width="2.5" class="text-dark" />
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-[13.5px] font-semibold text-dark truncate">{{ c.name }}</p>
-                                    <p v-if="c.grade_level" class="text-[11.5px] text-gray">ระดับชั้น {{ c.grade_level
-                                        }}</p>
+                                    <p v-if="c.grade_level" class="text-[11.5px] text-gray">ระดับชั้น {{ c.grade_level }}</p>
                                 </div>
                                 <span v-if="c.grade_level"
                                     class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold">
@@ -404,7 +265,7 @@ onMounted(() => {
                         class="mt-5 pt-4 border-t-2 border-dark/10 flex items-center justify-center gap-2">
                         <button type="button" @click="currentPage--" :disabled="currentPage === 1"
                             aria-label="หน้าก่อนหน้า" class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
+                               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
                             <ChevronLeft :size="16" :stroke-width="3" />
                         </button>
 
@@ -419,16 +280,14 @@ onMounted(() => {
 
                         <button type="button" @click="currentPage++" :disabled="currentPage === totalPages"
                             aria-label="หน้าถัดไป" class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
+                               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
                             <ChevronRight :size="16" :stroke-width="3" />
                         </button>
                     </div>
-                  
                 </section>
-
-                
             </div>
         </main>
-         <LogoutModal v-model="showLogoutModal" />
+
+        <LogoutModal v-model="showLogoutModal" />
     </div>
 </template>

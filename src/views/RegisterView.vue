@@ -2,6 +2,7 @@
 import { ref, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../lib/supabase'
+import { Upload, GraduationCap, Presentation } from 'lucide-vue-next'
 import AvatarPicker from '../components/AvatarPicker.vue'
 
 const router = useRouter()
@@ -222,17 +223,19 @@ async function handleRegister() {
                 <div>
                     <label class="text-[13px] font-semibold">บทบาท</label>
                     <div class="flex gap-3 mt-1.5">
-                        <label
-                            class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer"
-                            :class="form.role === 'student' ? 'bg-purple-light' : 'bg-white'">
-                            <input type="radio" value="student" v-model="form.role" class="hidden" />
-                            🎓 นักเรียน
+                        <label class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer
+               transition focus-within:ring-2 focus-within:ring-purple"
+                            :class="form.role === 'student' ? 'bg-purple-light' : 'bg-white hover:bg-gray-light'">
+                            <input type="radio" value="student" v-model="form.role" class="sr-only" />
+                            <GraduationCap :size="18" :stroke-width="2.5" />
+                            นักเรียน
                         </label>
-                        <label
-                            class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer"
-                            :class="form.role === 'teacher' ? 'bg-purple-light' : 'bg-white'">
-                            <input type="radio" value="teacher" v-model="form.role" class="hidden" />
-                            🧑‍🏫 ครู
+                        <label class="flex-1 flex items-center justify-center gap-2 border-2 border-dark rounded-lg py-2.5 cursor-pointer
+               transition focus-within:ring-2 focus-within:ring-purple"
+                            :class="form.role === 'teacher' ? 'bg-purple-light' : 'bg-white hover:bg-gray-light'">
+                            <input type="radio" value="teacher" v-model="form.role" class="sr-only" />
+                            <Presentation :size="18" :stroke-width="2.5" />
+                            ครู
                         </label>
                     </div>
                 </div>
@@ -245,21 +248,35 @@ async function handleRegister() {
 
             <!-- STEP 2: เลือกอวตาร -->
             <div v-else class="flex flex-col gap-5">
-                <AvatarPicker :model-value="selectedAvatar" @update:model-value="selectPresetAvatar" />
-
-                <div class="border-2 border-dashed border-dark rounded-xl p-4">
-                    <div class="flex items-center gap-4">
-                        <img v-if="customAvatarPreview" :src="customAvatarPreview"
-                            class="w-16 h-16 rounded-lg border-2 border-dark object-cover shrink-0"
-                            alt="รูปโปรไฟล์ที่เลือก" />
-                        <label
-                            class="px-4 py-2.5 rounded-lg border-2 border-dark bg-white text-[13px] font-semibold cursor-pointer hover:bg-gray-light">
-                            อัปโหลดรูปของฉัน
-                            <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
-                                @change="handleCustomAvatarChange" />
-                        </label>
-                    </div>
+                <div class="flex flex-col gap-2.5">
+                    <p class="text-[12px] font-semibold text-dark">เลือกอวตาร</p>
+                    <AvatarPicker :model-value="selectedAvatar" @update:model-value="selectPresetAvatar" />
                 </div>
+
+                <div class="flex items-center gap-3" aria-hidden="true">
+                    <span class="flex-1 h-0.5 bg-dark/10"></span>
+                    <span class="text-[11.5px] text-gray">หรือ</span>
+                    <span class="flex-1 h-0.5 bg-dark/10"></span>
+                </div>
+
+                <label class="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-dashed border-dark cursor-pointer
+              hover:bg-gray-light transition focus-within:ring-2 focus-within:ring-purple"
+                    :class="loading && 'opacity-50 pointer-events-none'">
+                    <img v-if="customAvatarPreview" :src="customAvatarPreview"
+                        class="w-11 h-11 shrink-0 rounded-lg border-2 border-dark object-cover" alt="รูปที่อัปโหลด" />
+                    <div v-else
+                        class="w-11 h-11 shrink-0 rounded-lg border-2 border-dark bg-orange flex items-center justify-center">
+                        <Upload :size="18" :stroke-width="2.5" class="text-dark" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[13.5px] font-semibold text-dark">
+                            {{ customAvatarPreview ? 'เลือกไฟล์อื่น' : 'อัปโหลดรูปของฉัน' }}
+                        </p>
+                        <p class="text-[11.5px] text-gray">JPG, PNG หรือ WebP ไม่เกิน 5 MB</p>
+                    </div>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only" :disabled="loading"
+                        @change="handleCustomAvatarChange" />
+                </label>
 
                 <div class="flex flex-col min-[400px]:flex-row gap-3">
                     <button type="button" @click="step = 1"
