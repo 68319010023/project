@@ -42,10 +42,14 @@ export function useClassroomDetail(classroomId) {
   const memberCount = computed(() => members.value.length)
   const assignmentCount = computed(() => assignments.value.length + quizzes.value.length)
 
-  const submittedCount = computed(
-    () => submissions.value.filter((s) => s.submitted_at).length
+ const submittedCount = computed(
+    () =>
+      submissions.value.filter((s) => s.submitted_at).length +
+     quizSubmissions.value.filter((s) => s.submitted_at).length
   )
 
+
+  
   function mySubmittedCount(studentId) {
     return computed(() => {
       const assignmentDone = submissions.value.filter(
@@ -421,8 +425,8 @@ export function useClassroomDetail(classroomId) {
 
   async function loadAll() {
     try {
-      await Promise.all([loadClassroom(), loadMembers(), loadAssignments()])
-      await loadSubmissions()
+      await Promise.all([loadClassroom(), loadMembers(), loadAssignments(), loadQuizzes()])
+      await Promise.all([loadSubmissions(), loadQuizSubmissions()])
     } catch (err) {
       // ไม่ควรมาถึงจุดนี้แล้ว เพราะฟังก์ชันย่อยทุกตัวถูก catch ไว้แล้วในตัวเอง
       // เก็บไว้เป็น safety net เผื่อกรณีมีคนเพิ่มฟังก์ชันใหม่ในอนาคตแล้วลืมใส่ try/catch

@@ -257,8 +257,45 @@ async function handleSubmitAll() {
     return
   }
 
-  submitting.value = true
+   submitting.value = true
 
+  // 1) อัปโหลดไฟล์ใหม่ขึ้น storage พร้อมกัน (ยังไม่แตะ DB)
+  const newFiles = pendingFiles.value.filter((p) => p.file)
+  const uploads = await Promise.allSettled(
+    newFiles.map(async (p) => {
+      const ext = p.file.name.includes('.')
+        ? p.file.name.slice(p.file.name.lastIndexOf('.'))
+        : ''
+      const filePath = `${assignmentId}/${user.value.id}/${crypto.randomUUID()}${ext}`
+      const { error } = await supabase.storage
+        .from('submission-files')
+        .upload(filePath, p.file)
+      if (error) throw error
+      return { filePath, label: p.file.name }
+    })
+  )
+
+  const uploaded = uploads
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => r.value)
+  const failedNames = newFiles
+    .filter((_, i) => uploads[i].status === 'rejected')
+    .map((p) => p.file.name)
+
+  if (failedNames.length > 0) {
+    console.error('upload failed:', failedNames)
+    // ลบไฟล์ที่อัปโหลดสำเร็จแล้วทิ้ง (all-or-nothing) ไม่ให้ไฟล์ค้างใน storage
+    if (uploaded.length > 0) {
+      await supabase.storage
+        .from('submission-files')
+        .remove(uploaded.map((u) => u.filePath))
+    }
+    submitError.value = `อัปโหลดไม่สำเร็จ: ${failedNames.join(', ')} ลองใหม่อีกครั้ง`
+    submitting.value = false
+    return
+  }
+
+  // 2) อัปโหลดครบแล้วค่อยสร้างแถวส่งงาน
   const submissionId = await ensureSubmission(assignmentId, user.value.id)
   if (!submissionId) {
     submitError.value = 'ส่งงานไม่สำเร็จ ลองใหม่อีกครั้ง'
@@ -266,65 +303,24 @@ async function handleSubmitAll() {
     return
   }
 
-  for (const pending of pendingFiles.value) {
-    // ไฟล์เดิมที่เคยส่งไปแล้ว (มาจากการกดยกเลิกก่อนหน้า) — ไม่ต้องอัปโหลดซ้ำ แค่ insert อ้างอิง path เดิม
-    if (pending.existingUrl) {
-      const { error } = await addSubmissionItem(submissionId, {
-        type: 'file',
-        url: pending.existingUrl,
-        label: pending.label,
-      })
-      if (error) {
-        submitError.value = `บันทึก "${pending.label}" ไม่สำเร็จ ลองใหม่อีกครั้ง`
-        submitting.value = false
-        return
-      }
-      continue
-    }
+  // 3) insert รายการทั้งหมด (ทีละรายการ เพราะ addSubmissionItem โหลดรายการซ้ำทุกครั้ง)
+  const items = [
+    ...pendingFiles.value
+      .filter((p) => p.existingUrl)
+      .map((p) => ({ type: 'file', url: p.existingUrl, label: p.label })),
+    ...uploaded.map((u) => ({ type: 'file', url: u.filePath, label: u.label })),
+    ...pendingLinks.value.map((l) => ({ type: 'link', url: l.url, label: l.label })),
+  ]
 
-    // ไฟล์ใหม่จริง — อัปโหลดขึ้น storage ก่อน
-    const extension = pending.file.name.includes('.')
-      ? pending.file.name.slice(pending.file.name.lastIndexOf('.'))
-      : ''
-    const filePath = `${assignmentId}/${user.value.id}/${crypto.randomUUID()}${extension}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('submission-files')
-      .upload(filePath, pending.file)
-
-    if (uploadError) {
-      console.error('upload error:', uploadError)
-      submitError.value = `อัปโหลด "${pending.file.name}" ไม่สำเร็จ ลองใหม่อีกครั้ง`
-      submitting.value = false
-      return
-    }
-
-    const { error } = await addSubmissionItem(submissionId, {
-      type: 'file',
-      url: filePath,
-      label: pending.file.name,
-    })
-
+  for (const item of items) {
+    const { error } = await addSubmissionItem(submissionId, item)
     if (error) {
-      submitError.value = `บันทึก "${pending.file.name}" ไม่สำเร็จ ลองใหม่อีกครั้ง`
+      submitError.value = `บันทึก "${item.label}" ไม่สำเร็จ ลองใหม่อีกครั้ง`
       submitting.value = false
       return
     }
   }
 
-  for (const pending of pendingLinks.value) {
-    const { error } = await addSubmissionItem(submissionId, {
-      type: 'link',
-      url: pending.url,
-      label: pending.label,
-    })
-
-    if (error) {
-      submitError.value = 'บันทึกลิงก์บางรายการไม่สำเร็จ ลองใหม่อีกครั้ง'
-      submitting.value = false
-      return
-    }
-  }
 
   pendingFiles.value.forEach((f) => f.file && f.previewUrl && URL.revokeObjectURL(f.previewUrl))
   pendingFiles.value = []
