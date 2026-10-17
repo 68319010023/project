@@ -1,27 +1,54 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ArrowLeft, Pencil, Check, X, LogOut, School } from 'lucide-vue-next'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { Pencil, Check, X, LogOut, School, Mail, Settings, LayoutGrid, Layers, ChevronRight, ChevronLeft, Presentation, GraduationCap, Search } from 'lucide-vue-next'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../composables/useAuth'
+import AppNavbar from '../components/AppNavbar.vue'
+import LogoutModal from '../components/LogoutModal.vue'
 
-const router = useRouter()
-const { profile, signOut, updateProfile } = useAuth()
+const { profile, updateProfile } = useAuth()
 
 const profileImageBucket = 'profile-images'
 const maxAvatarSize = 5 * 1024 * 1024
+
+const isTeacher = computed(() => profile.value?.role === 'teacher')
+const homePath = computed(() => (isTeacher.value ? '/teacher' : '/student'))
+const avatarInitials = computed(
+    () => (profile.value?.name?.[0] ?? '') + (profile.value?.lastname?.[0] ?? '')
+)
+
+const greeting = computed(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'สวัสดีตอนเช้า'
+    if (hour < 18) return 'สวัสดีตอนบ่าย'
+    return 'สวัสดีตอนเย็น'
+})
+
+const todayLabel = computed(() =>
+    new Date().toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long' })
+)
+
+const classroomsTitle = computed(() => (isTeacher.value ? 'ห้องเรียนที่สอนอยู่' : 'ห้องเรียนที่เข้าร่วม'))
 
 // --- แก้ไขชื่อ-นามสกุล ---
 const isEditingName = ref(false)
 const editName = ref('')
 const editLastname = ref('')
 const savingName = ref(false)
+const nameInput = ref(null)
 
-function startEditName() {
+const canSaveName = computed(
+    () => !!editName.value.trim() && !!editLastname.value.trim() && !savingName.value
+)
+
+async function startEditName() {
     if (!profile.value) return
     editName.value = profile.value.name
     editLastname.value = profile.value.lastname
     isEditingName.value = true
+    await nextTick()
+    nameInput.value?.focus()
+    nameInput.value?.select()
 }
 function cancelEditName() {
     isEditingName.value = false
@@ -94,13 +121,10 @@ const classrooms = ref([])
 const loadingClassrooms = ref(true)
 
 async function loadClassrooms() {
-    if (!profile.value) {
-        // profile ยังไม่พร้อม (race condition ตอนเข้าหน้านี้เร็วเกินไป) — รอ watch ด้านล่างเรียกซ้ำให้เอง
-        return
-    }
+    if (!profile.value) return
 
     loadingClassrooms.value = true
-    const rpcName = profile.value.role === 'teacher' ? 'get_teacher_classrooms' : 'get_student_classrooms'
+    const rpcName = isTeacher.value ? 'get_teacher_classrooms' : 'get_student_classrooms'
     const { data, error } = await supabase.rpc(rpcName)
 
     if (!error) {
@@ -111,16 +135,51 @@ async function loadClassrooms() {
     loadingClassrooms.value = false
 }
 
-async function handleSignOut() {
-    await signOut()
-    router.push('/login')
-}
+const uniqueGradeLevels = computed(() => {
+    const set = new Set(classrooms.value.map((c) => c.grade_level).filter(Boolean))
+    return set.size
+})
+
+// --- ค้นหาห้องเรียน ---
+const searchQuery = ref('')
+
+const filteredClassrooms = computed(() => {
+    const q = searchQuery.value.trim().toLowerCase()
+    if (!q) return classrooms.value
+    return classrooms.value.filter(
+        (c) =>
+            c.name?.toLowerCase().includes(q) ||
+            c.grade_level?.toLowerCase().includes(q)
+    )
+})
+
+// --- แบ่งหน้า (หน้าละ 3 ห้อง) ---
+const pageSize = 3
+const currentPage = ref(1)
+
+const totalPages = computed(() =>
+    Math.max(1, Math.ceil(filteredClassrooms.value.length / pageSize))
+)
+
+const pagedClassrooms = computed(() => {
+    const start = (currentPage.value - 1) * pageSize
+    return filteredClassrooms.value.slice(start, start + pageSize)
+})
+
+
+
+
+// ค้นหาใหม่ให้กลับไปหน้า 1 / ถ้าจำนวนหน้าลดลงให้ไม่เกินหน้าสุดท้าย
+watch(searchQuery, () => { currentPage.value = 1 })
+watch(totalPages, (n) => { if (currentPage.value > n) currentPage.value = n })
+
+// --- ออกจากระบบ ----
+const showLogoutModal = ref(false)
 
 onMounted(() => {
     if (profile.value) {
         loadClassrooms()
     }
-    // เผื่อ mount ตอน profile ยังไม่มา (fetchProfile ยังไม่เสร็จ) — โหลดซ้ำอัตโนมัติทันทีที่มาถึง
     const stop = watch(profile, (val) => {
         if (val) {
             loadClassrooms()
@@ -132,98 +191,244 @@ onMounted(() => {
 
 <template>
     <div class="bg-gray-light min-h-screen font-mitr">
-        <div class="sticky top-0 z-30 bg-dark border-b-4 border-purple h-[90px] flex items-center gap-4 px-6">
-            <button type="button" @click="router.back()"
-                class="w-10 h-10 rounded-lg border-2 border-gray-500 flex items-center justify-center text-white hover:border-white hover:scale-110 transition-transform duration-200 shrink-0">
-                <ArrowLeft :size="20" :stroke-width="2.5" />
-            </button>
-            <span class="font-mali font-bold text-lg text-white whitespace-nowrap">โปรไฟล์ของฉัน</span>
-        </div>
+        <AppNavbar :show-search="false" :breadcrumb="[
+            { label: 'หน้ารวมห้องเรียน', to: homePath },
+            { label: 'โปรไฟล์ของฉัน' }
+        ]" />
 
-        <main class="max-w-[600px] mx-auto px-6 py-10">
-            <!-- การ์ดข้อมูลผู้ใช้ -->
-            <div class="bg-white border-3 border-dark rounded-xl shadow-offset p-6 mb-6">
-                <div class="flex flex-col items-center text-center mb-5">
-                    <label class="relative cursor-pointer group">
-                        <div
-                            class="w-24 h-24 rounded-full border-3 border-dark overflow-hidden bg-purple-light shrink-0">
+        <main class="max-w-[1100px] mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6 items-start">
+
+            <!-- ============ Sidebar ซ้าย ============ -->
+            <aside class="w-full lg:w-[280px] shrink-0 flex flex-col gap-5">
+
+                <!-- การ์ดโปรไฟล์ (พื้นเข้ม) -->
+                <div
+                    class="relative overflow-hidden bg-dark text-white border-3 border-dark rounded-2xl shadow-offset p-6">
+                    <div class="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 pointer-events-none">
+                    </div>
+
+                    <label class="relative cursor-pointer group inline-block">
+                        <div class="w-16 h-16 rounded-full border-3 border-white overflow-hidden bg-purple-light shrink-0
+                                   flex items-center justify-center font-mali font-bold text-lg text-dark">
                             <img v-if="profile?.img" :src="profile.img" class="w-full h-full object-cover"
                                 alt="avatar" />
+                            <span v-else>{{ avatarInitials }}</span>
                         </div>
                         <div
                             class="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Pencil :size="20" :stroke-width="2.5" class="text-white" />
+                            <Pencil :size="15" :stroke-width="2.5" class="text-white" />
                         </div>
                         <input type="file" accept="image/jpeg,image/png,image/webp" class="sr-only"
                             :disabled="uploadingAvatar" @change="handleAvatarChange" />
                     </label>
-                    <p v-if="uploadingAvatar" class="text-[12px] text-gray-400 mt-2">กำลังอัปโหลด...</p>
-                    <p v-if="avatarError" class="text-[12px] text-danger mt-2">{{ avatarError }}</p>
+                    <p v-if="uploadingAvatar" class="relative text-[11px] text-white/70 mt-2">กำลังอัปโหลด...</p>
+                    <p v-if="avatarError" class="relative text-[11px] text-red-300 mt-2">{{ avatarError }}</p>
 
-                    <div class="mt-4 w-full">
-                        <div v-if="!isEditingName" class="flex items-center justify-center gap-2">
-                            <h2 class="font-mali font-bold text-xl">{{ profile?.name }} {{ profile?.lastname }}</h2>
+                    <div class="relative mt-3">
+                        <div v-if="!isEditingName" class="flex items-center gap-1.5">
+                            <h2 class="font-mali font-bold text-[17px] truncate">{{ profile?.name }} {{
+                                profile?.lastname }}</h2>
                             <button type="button" @click="startEditName"
-                                class="w-7 h-7 rounded-full border-2 border-dark flex items-center justify-center hover:bg-gray-light shrink-0">
-                                <Pencil :size="13" :stroke-width="2.5" />
+                                class="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center hover:bg-white/20 shrink-0 transition">
+                                <Pencil :size="11" :stroke-width="2.5" />
                             </button>
                         </div>
-                        <div v-else class="flex flex-col gap-2 items-center">
-                            <div class="flex gap-2 w-full">
-                                <input v-model="editName" type="text" placeholder="ชื่อ"
-                                    class="flex-1 min-w-0 px-3 py-2 rounded-lg border-2 border-dark text-[14px] text-center" />
+                        <form v-else class="flex flex-col gap-3" @submit.prevent="saveEditName"
+                            @keydown.esc="cancelEditName">
+                            <label class="flex flex-col gap-1">
+                                <span class="text-[11.5px] text-white/70">ชื่อ</span>
+                                <input ref="nameInput" v-model="editName" type="text" placeholder="ชื่อ"
+                                    autocomplete="given-name" class="w-full px-3 py-2 rounded-lg border-2 border-white bg-white text-dark text-[13.5px]
+                                           outline-none focus:border-purple focus:ring-2 focus:ring-purple/60" />
+                            </label>
+                            <label class="flex flex-col gap-1">
+                                <span class="text-[11.5px] text-white/70">นามสกุล</span>
                                 <input v-model="editLastname" type="text" placeholder="นามสกุล"
-                                    class="flex-1 min-w-0 px-3 py-2 rounded-lg border-2 border-dark text-[14px] text-center" />
-                            </div>
-                            <div class="flex gap-2">
-                                <button type="button" @click="saveEditName" :disabled="savingName"
-                                    class="w-9 h-9 rounded-full border-2 border-dark bg-purple flex items-center justify-center hover:bg-purple-light disabled:opacity-50">
-                                    <Check :size="16" :stroke-width="3" />
+                                    autocomplete="family-name" class="w-full px-3 py-2 rounded-lg border-2 border-white bg-white text-dark text-[13.5px]
+                                           outline-none focus:border-purple focus:ring-2 focus:ring-purple/60" />
+                            </label>
+                            <div class="flex gap-2 mt-1">
+                                <button type="submit" :disabled="!canSaveName"
+                                    class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 border-white bg-purple text-dark text-[13px] font-bold
+                                           hover:bg-purple-light disabled:opacity-40 disabled:cursor-not-allowed transition">
+                                    <Check :size="14" :stroke-width="3" />
+                                    {{ savingName ? 'กำลังบันทึก...' : 'บันทึก' }}
                                 </button>
-                                <button type="button" @click="cancelEditName"
-                                    class="w-9 h-9 rounded-full border-2 border-dark bg-white flex items-center justify-center hover:bg-gray-light">
-                                    <X :size="16" :stroke-width="3" />
+                                <button type="button" @click="cancelEditName" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border-2 border-white/60 text-white text-[13px] font-semibold
+                                           hover:bg-white/15 transition">
+                                    <X :size="14" :stroke-width="3" />
+                                    ยกเลิก
                                 </button>
                             </div>
-                        </div>
+                        </form>
+
+                        <p class="mt-3 inline-flex items-center gap-1.5 text-[12px] text-white/70 truncate max-w-full">
+                            <Mail :size="12" :stroke-width="2.5" class="shrink-0" />
+                            <span class="truncate">{{ profile?.email }}</span>
+                        </p>
                     </div>
 
                     <span
-                        class="mt-2 px-3 py-1 rounded-full bg-purple-light border-2 border-dark text-[12px] font-semibold">
-                        {{ profile?.role === 'teacher' ? '🧑‍🏫 ครู' : '🎓 นักเรียน' }}
+                        class="relative mt-4 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-dark text-[12px] font-bold"
+                        :class="isTeacher ? 'bg-orange text-dark' : 'bg-purple-light text-dark'">
+                        <Presentation v-if="isTeacher" :size="14" :stroke-width="2.5" />
+                        <GraduationCap v-else :size="14" :stroke-width="2.5" />
+                        {{ isTeacher ? 'ครู' : 'นักเรียน' }}
                     </span>
-                    <p class="text-[13px] text-gray-400 mt-2">{{ profile?.email }}</p>
                 </div>
-            </div>
 
-            <!-- รายชื่อห้องเรียน -->
-            <div class="bg-white border-3 border-dark rounded-xl shadow-offset p-5 mb-6">
-                <h3 class="font-mali font-bold text-[16px] mb-3">
-                    {{ profile?.role === 'teacher' ? 'ห้องเรียนที่สอนอยู่' : 'ห้องเรียนที่เข้าร่วม' }}
-                </h3>
-
-                <div v-if="loadingClassrooms" class="text-center text-gray-400 text-[13px] py-4">กำลังโหลด...</div>
-                <div v-else-if="classrooms.length === 0" class="text-center text-gray-400 text-[13px] py-4">
-                    ยังไม่มีห้องเรียน
-                </div>
-                <ul v-else class="flex flex-col gap-2">
-                    <li v-for="c in classrooms" :key="c.id"
-                        class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-light border-2 border-gray-200">
-                        <School :size="16" :stroke-width="2.5" class="text-purple shrink-0" />
-                        <span class="text-[14px] font-medium truncate">{{ c.name }}</span>
-                        <span v-if="c.grade_level" class="text-[12px] text-gray-400 whitespace-nowrap ml-auto">
-                            {{ c.grade_level }}
+                <!-- เมนูนำทาง -->
+                <nav class="bg-white border-3 border-dark rounded-2xl shadow-offset p-2 flex flex-col gap-1">
+                    <a href="#my-classrooms"
+                        class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-dark text-white font-semibold text-[13.5px] transition">
+                        <LayoutGrid :size="16" :stroke-width="2.5" />
+                        <span class="flex-1">{{ classroomsTitle }}</span>
+                        <span v-if="!loadingClassrooms && classrooms.length"
+                            class="min-w-[22px] h-[22px] px-1.5 rounded-full border-2 border-white bg-orange text-dark text-[11px] font-bold flex items-center justify-center">
+                            {{ classrooms.length }}
                         </span>
-                    </li>
-                </ul>
-            </div>
+                    </a>
+                    <div class="h-0.5 bg-dark/10 my-1 mx-2"></div>
+                    <router-link to="/settings"
+                        class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-dark font-semibold text-[13.5px] hover:bg-dark/15 transition">
+                        <Settings :size="16" :stroke-width="2.5" />
+                        ตั้งค่า
+                    </router-link>
+                    <button type="button" @click="showLogoutModal = true"
+                        class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-red-600 font-semibold text-[13.5px] hover:bg-red-200 transition text-left">
+                        <LogOut :size="16" :stroke-width="2.5" />
+                        ออกจากระบบ
+                    </button>
+                </nav>
+            </aside>
 
-            <!-- ออกจากระบบ -->
-            <button type="button" @click="handleSignOut"
-                class="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl border-3 border-dark bg-white shadow-offset text-red-600 font-semibold hover:bg-red-50 transition-colors">
-                <LogOut :size="18" :stroke-width="2.5" />
-                ออกจากระบบ
-            </button>
+            <!-- ============ เนื้อหาหลักขวา ============ -->
+            <div class="flex-1 min-w-0 w-full flex flex-col gap-5">
+
+                <!-- คำทักทาย + ปุ่มหลัก -->
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div>
+                        <h1 class="font-mali font-bold text-2xl text-dark">{{ greeting }}, {{ profile?.name }}</h1>
+                        <p class="text-[13px] text-gray mt-1">{{ todayLabel }} · นี่คือภาพรวมบัญชีของคุณ</p>
+                    </div>
+                    <router-link :to="homePath"
+                        class="shrink-0 self-start inline-flex items-center px-5 py-2.5 rounded-full border-3 border-dark bg-orange text-dark text-[13px] font-bold shadow-offset hover:-translate-y-0.5 transition">
+                        ไปหน้ารวมห้องเรียน
+                    </router-link>
+                </div>
+
+                <!-- Stat cards -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-5 flex items-center gap-3">
+                        <div
+                            class="w-11 h-11 shrink-0 rounded-xl border-2 border-dark bg-purple-light flex items-center justify-center">
+                            <School :size="20" :stroke-width="2.5" class="text-dark" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-mali font-bold text-2xl text-dark leading-none">{{ classrooms.length }}</p>
+                            <p class="text-[12px] text-gray mt-1">{{ isTeacher ? 'ห้องที่สอน' : 'ห้องที่เข้าร่วม' }}</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-5 flex items-center gap-3">
+                        <div
+                            class="w-11 h-11 shrink-0 rounded-xl border-2 border-dark bg-orange flex items-center justify-center">
+                            <Layers :size="20" :stroke-width="2.5" class="text-dark" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-mali font-bold text-2xl text-dark leading-none">{{ uniqueGradeLevels }}</p>
+                            <p class="text-[12px] text-gray mt-1">ระดับชั้นที่เกี่ยวข้อง</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- รายชื่อห้องเรียน (แถวแบบรายการ) -->
+                <section id="my-classrooms"
+                    class="bg-white border-3 border-dark rounded-2xl shadow-offset p-6 scroll-mt-24">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <h3 class="font-mali font-bold text-[16px] text-dark">
+                            {{ classroomsTitle }}
+                            <span v-if="!loadingClassrooms" class="text-[12.5px] text-gray font-mitr font-normal">
+                                ({{ searchQuery.trim() ? `${filteredClassrooms.length} จาก ${classrooms.length}` :
+                                    classrooms.length }} ห้อง)
+                            </span>
+                        </h3>
+
+                        <!-- ช่องค้นหา -->
+                        <div v-if="!loadingClassrooms && classrooms.length > 0" class="relative w-full sm:w-[220px]">
+                            <Search :size="15" :stroke-width="2.5"
+                                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray pointer-events-none" />
+                            <input v-model="searchQuery" type="text" placeholder="ค้นหาห้องเรียน..." class="w-full pl-9 pr-8 py-2 rounded-lg border-2 border-dark bg-white text-[13px] text-dark
+                   placeholder:text-gray outline-none focus:bg-gray-light transition" />
+                            <button v-if="searchQuery" type="button" @click="searchQuery = ''" aria-label="ล้างคำค้นหา"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center hover:bg-orange transition">
+                                <X :size="12" :stroke-width="3" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="loadingClassrooms" class="text-center text-gray text-[13px] py-6">กำลังโหลด...</div>
+                    <p v-else-if="classrooms.length === 0"
+                        class="border-2 border-dashed border-dark/30 rounded-xl p-8 mt-3 text-center text-gray text-[13px]">
+                        ยังไม่มีห้องเรียน
+                    </p>
+                    <p v-else-if="filteredClassrooms.length === 0"
+                        class="border-2 border-dashed border-dark/30 rounded-xl p-8 mt-3 text-center text-gray text-[13px]">
+                        ไม่พบห้องเรียนที่ตรงกับ "{{ searchQuery }}"
+                    </p>
+                    <ul v-else class="flex flex-col gap-3">
+                        <li v-for="c in pagedClassrooms" :key="c.id">
+                            <router-link :to="{ name: 'classroom-detail', params: { id: c.id } }" class="group flex items-center gap-3 px-3.5 py-3 rounded-xl border-2 border-dark
+                   hover:bg-gray-light hover:-translate-y-0.5 transition">
+                                <div
+                                    class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
+                                    <School :size="16" :stroke-width="2.5" class="text-dark" />
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[13.5px] font-semibold text-dark truncate">{{ c.name }}</p>
+                                    <p v-if="c.grade_level" class="text-[11.5px] text-gray">ระดับชั้น {{ c.grade_level
+                                        }}</p>
+                                </div>
+                                <span v-if="c.grade_level"
+                                    class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold">
+                                    {{ c.grade_level }}
+                                </span>
+                                <ChevronRight :size="16" :stroke-width="2.5"
+                                    class="shrink-0 text-dark group-hover:translate-x-0.5 transition-transform" />
+                            </router-link>
+                        </li>
+                    </ul>
+
+                    <!-- เปลี่ยนหน้า -->
+                    <div v-if="totalPages > 1"
+                        class="mt-5 pt-4 border-t-2 border-dark/10 flex items-center justify-center gap-2">
+                        <button type="button" @click="currentPage--" :disabled="currentPage === 1"
+                            aria-label="หน้าก่อนหน้า" class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
+               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
+                            <ChevronLeft :size="16" :stroke-width="3" />
+                        </button>
+
+                        <button v-for="p in totalPages" :key="p" type="button" @click="currentPage = p"
+                            :aria-current="p === currentPage ? 'page' : undefined"
+                            class="min-w-[36px] h-9 px-2 rounded-lg border-2 border-dark text-[13px] font-bold transition"
+                            :class="p === currentPage
+                                ? 'bg-orange text-dark'
+                                : 'bg-white text-dark hover:bg-gray-light hover:-translate-y-0.5'">
+                            {{ p }}
+                        </button>
+
+                        <button type="button" @click="currentPage++" :disabled="currentPage === totalPages"
+                            aria-label="หน้าถัดไป" class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
+               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
+                            <ChevronRight :size="16" :stroke-width="3" />
+                        </button>
+                    </div>
+                  
+                </section>
+
+                
+            </div>
         </main>
+         <LogoutModal v-model="showLogoutModal" />
     </div>
 </template>
