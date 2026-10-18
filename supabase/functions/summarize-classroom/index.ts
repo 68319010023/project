@@ -1,11 +1,11 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
-
+import { logAiUsage } from "../_shared/aiUsage.ts";
 const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : null);
 async function callGemini(prompt: string, apiKey: string, models: string[]) {
   let lastError = "Gemini error";
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 1; attempt++) {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
@@ -18,7 +18,7 @@ async function callGemini(prompt: string, apiKey: string, models: string[]) {
         },
       );
       const data = await res.json();
-      if (res.ok) return { data };
+      if (res.ok) return { data, model };
 
       lastError = data?.error?.message ?? lastError;
       console.error(`Gemini ${model} attempt ${attempt + 1}:`, res.status, lastError);
@@ -153,10 +153,11 @@ ${JSON.stringify(items, null, 2)}
     if (!apiKey) {
       return Response.json({ error: "missing GEMINI_API_KEY" }, { status: 500 });
     }
-    const models = [
-      Deno.env.get("GEMINI_MODEL") ?? "gemini-3.8-flash",
-      Deno.env.get("GEMINI_FALLBACK_MODEL") ?? "gemini-3.1-flash-lite",
-    ];
+  
+
+     const models = (
+      Deno.env.get("GEMINI_MODELS") ?? "gemini-3.8-flash,gemini-3.1-flash-lite"
+    ).split(",").map((m) => m.trim()).filter(Boolean);
 
     const result = await callGemini(prompt, apiKey, models);
     if (result.error) {
@@ -166,6 +167,13 @@ ${JSON.stringify(items, null, 2)}
       );
     }
     const data = result.data;
+     await logAiUsage(ctx.supabaseAdmin, {
+     user_id: user.id,
+      classroom_id,
+      feature: "classroom_summary",
+      model: result.model,
+      usage: data.usageMetadata,
+    });
 
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     try {

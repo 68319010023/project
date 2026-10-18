@@ -1,5 +1,6 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
+import { logAiUsage } from "../_shared/aiUsage.ts";
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, _ctx) => {
