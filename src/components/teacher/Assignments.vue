@@ -173,15 +173,15 @@ async function confirmDelete() {
 </script>
 
 <template>
-  <div class="max-w-[1000px] mx-auto px-6 py-8">
+  <div class="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
     <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
       <h2 class="font-mali text-xl font-bold text-dark">งานทั้งหมด</h2>
 
-      <div class="flex items-center gap-2.5 ml-auto">
-        <div class="relative">
+      <div class="flex items-center gap-2.5 ml-auto flex-wrap sm:flex-nowrap">
+        <div class="relative w-full sm:w-auto">
           <Search :size="15" :stroke-width="2.5" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray" />
           <input v-model="searchQuery" type="text" placeholder="ค้นหาชื่องาน..." class="pl-9 pr-3.5 py-1.5 rounded-xl border-3 border-dark bg-white text-dark text-[13px]
-                        placeholder-gray focus:outline-none focus:ring-2 focus:ring-purple w-[180px] sm:w-[220px]" />
+                        placeholder-gray focus:outline-none focus:ring-2 focus:ring-purple w-full sm:w-[180px] md:w-[220px]" />
         </div>
 
         <!-- Dropdown filter -->
@@ -239,20 +239,20 @@ async function confirmDelete() {
       <li v-for="item in combinedItems" :key="`${item.kind}-${item.id}`">
         <!-- การ์ดการบ้าน -->
         <router-link v-if="item.kind === 'assignment'"
-          :to="{ name: 'teacher-assignment-detail', params: { id: classroomId, assignmentId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
+          :to="{ name: 'teacher-assignment-detail', params: { id: classroomId, assignmentId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-5
                  hover:-translate-y-1 hover:shadow-offset-lg transition">
           <div class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-orange flex items-center justify-center">
             <ClipboardList :size="18" :stroke-width="2.5" class="text-dark" />
           </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start justify-between gap-3 sm:gap-4 flex-col sm:flex-row">
               <div class="min-w-0">
-                <p class="font-mali font-bold text-[17px] text-dark">{{ item.title }}</p>
-                <p v-if="item.description" class="text-[13px] text-gray mt-1.5 line-clamp-1">
+                <p class="font-mali font-bold text-[16px] sm:text-[17px] text-dark break-words">{{ item.title }}</p>
+                <p v-if="item.description" class="text-[12.5px] sm:text-[13px] text-gray mt-1.5 line-clamp-1">
                   {{ item.description }}
                 </p>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
                 <span
                   class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-purple-light">
                   ส่งแล้ว {{ submissionsFor(item.id).length }}/{{ memberCount }}
@@ -268,26 +268,26 @@ async function confirmDelete() {
               </div>
             </div>
             <div class="flex items-center gap-4 mt-3 flex-wrap">
-              <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[12px] text-gray font-mono">
+              <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-gray font-mono">
                 <Calendar :size="13" :stroke-width="2.5" />
                 {{ formatDate(item.due_date) }}
               </span>
-              <span class="text-[12px] text-gray font-mono">{{ item.max_score }} คะแนนเต็ม</span>
+              <span class="text-[11.5px] sm:text-[12px] text-gray font-mono">{{ item.max_score }} คะแนนเต็ม</span>
             </div>
           </div>
         </router-link>
 
         <!-- การ์ด Quiz -->
-        <router-link v-else :to="{ name: 'teacher-quiz-detail', params: { id: classroomId, quizId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
+        <router-link v-else :to="{ name: 'teacher-quiz-detail', params: { id: classroomId, quizId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-5
                  hover:-translate-y-1 hover:shadow-offset-lg transition">
           <div
             class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
             <FileQuestion :size="18" :stroke-width="2.5" class="text-dark" />
           </div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-start justify-between gap-4">
-              <p class="font-mali font-bold text-[17px] text-dark">{{ item.title }}</p>
-              <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-start justify-between gap-3 sm:gap-4 flex-col sm:flex-row">
+              <p class="font-mali font-bold text-[16px] sm:text-[17px] text-dark break-words">{{ item.title }}</p>
+              <div class="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
                 <span
                   class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-purple-light">
                   ส่งแล้ว {{ quizSubmissionsFor(item.id).length }}/{{ memberCount }}
@@ -303,11 +303,11 @@ async function confirmDelete() {
               </div>
             </div>
             <div class="flex items-center gap-4 mt-3 flex-wrap">
-              <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[12px] text-gray font-mono">
+              <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-gray font-mono">
                 <Calendar :size="13" :stroke-width="2.5" />
                 {{ formatDate(item.due_date) }}
               </span>
-              <span class="text-[12px] text-gray font-mono">{{ item.max_score }} คะแนนเต็ม</span>
+              <span class="text-[11.5px] sm:text-[12px] text-gray font-mono">{{ item.max_score }} คะแนนเต็ม</span>
             </div>
           </div>
         </router-link>

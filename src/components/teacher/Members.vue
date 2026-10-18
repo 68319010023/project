@@ -75,18 +75,18 @@ async function confirmRemoveMember() {
 </script>
 
 <template>
-  <div class="max-w-[1000px] mx-auto px-6 py-8">
+  <div class="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
     <!-- รหัสเข้าห้อง -->
     <div class="bg-purple-light border-3 border-dark rounded-2xl shadow-offset p-5 mb-6
                 flex items-center justify-between gap-4 flex-wrap">
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-4 min-w-0">
         <div class="w-12 h-12 shrink-0 rounded-full border-3 border-dark bg-white
                     flex items-center justify-center">
           <KeyRound :size="20" :stroke-width="2.5" />
         </div>
-        <div>
+        <div class="min-w-0">
           <p class="text-[11px] font-bold text-gray font-mono uppercase">รหัสเข้าห้องเรียน</p>
-          <p class="font-mali font-bold text-[22px] text-dark tracking-wide">{{ classCode }}</p>
+          <p class="font-mali font-bold text-[18px] sm:text-[22px] text-dark tracking-wide break-all">{{ classCode }}</p>
         </div>
       </div>
       <button type="button" @click="copyCode" class="inline-flex items-center gap-1.5 border-2 border-dark rounded-xl px-4 py-2
@@ -104,10 +104,10 @@ async function confirmRemoveMember() {
         <span class="text-[13px] text-gray font-mitr font-normal">({{ members.length }} คน)</span>
       </h2>
 
-      <div class="relative">
+      <div class="relative w-full sm:w-auto">
         <Search :size="15" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray" />
         <input v-model="search" type="text" placeholder="ค้นหาชื่อนักเรียน..." class="pl-9 pr-3 py-2 text-[13.5px] border-3 border-dark rounded-xl
-                      bg-white focus:outline-none focus:bg-purple-light/30 transition w-[220px]" />
+                      bg-white focus:outline-none focus:bg-purple-light/30 transition w-full sm:w-[220px]" />
       </div>
     </div>
 
@@ -135,7 +135,7 @@ async function confirmRemoveMember() {
             class="w-full h-full object-cover" />
           <template v-else>{{ initials(member) }}</template>
         </div>
-        <p class="flex-1 min-w-0 text-[13.5px] font-medium truncate">
+        <p class="flex-1 min-w-0 text-[12.5px] sm:text-[13.5px] font-medium truncate">
           {{ member.profiles?.name }} {{ member.profiles?.lastname }}
         </p>
         <button type="button"

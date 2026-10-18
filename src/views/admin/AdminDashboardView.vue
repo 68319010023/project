@@ -48,7 +48,7 @@ onMounted(loadPendingCount)
   <div class="bg-gray-light min-h-screen font-mitr">
     <AppNavbar :show-search="false" :breadcrumb="[{ label: 'ผู้ดูแลระบบ' }]" />
 
-    <main class="w-full max-w-[1480px] mx-auto px-4 sm:px-6 xl:px-10 py-8 flex flex-col lg:flex-row gap-6 items-start">
+    <main class="w-full max-w-[1480px] mx-auto px-4 sm:px-6 xl:px-10 py-6 sm:py-8 flex flex-col lg:flex-row gap-6 items-start">
 
       <!-- ============ Sidebar ============ -->
       <aside class="w-full lg:w-[240px] shrink-0 lg:sticky lg:top-[114px]">
@@ -56,7 +56,7 @@ onMounted(loadPendingCount)
           class="bg-white border-3 border-dark rounded-2xl shadow-offset p-2 flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-visible">
           <button v-for="t in tabs" :key="t.key" type="button" @click="selectTab(t.key)"
             :aria-current="activeTab === t.key ? 'page' : undefined"
-            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl font-semibold text-[13.5px] whitespace-nowrap text-left transition"
+            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl font-semibold text-[13px] sm:text-[13.5px] whitespace-nowrap text-left transition"
             :class="activeTab === t.key ? 'bg-dark text-white' : 'text-dark hover:bg-dark/15'">
             <component :is="t.icon" :size="16" :stroke-width="2.5" class="shrink-0" />
             {{ t.label }}
@@ -69,7 +69,7 @@ onMounted(loadPendingCount)
           <div class="hidden lg:block h-0.5 bg-dark/10 my-1 mx-2"></div>
 
           <button type="button" @click="showLogoutModal = true"
-            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-red-600 font-semibold text-[13.5px] whitespace-nowrap text-left hover:bg-red-200 transition">
+            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-red-600 font-semibold text-[13px] sm:text-[13.5px] whitespace-nowrap text-left hover:bg-red-200 transition">
             <LogOut :size="16" :stroke-width="2.5" class="shrink-0" />
             ออกจากระบบ
           </button>
@@ -79,8 +79,8 @@ onMounted(loadPendingCount)
       <!-- ============ เนื้อหา ============ -->
       <div class="flex-1 min-w-0 w-full flex flex-col gap-5">
         <div>
-          <h1 class="font-mali font-bold text-2xl text-dark">{{ activeMeta.label }}</h1>
-          <p class="text-[13px] text-gray mt-1">{{ activeMeta.desc }}</p>
+          <h1 class="font-mali font-bold text-xl sm:text-2xl text-dark">{{ activeMeta.label }}</h1>
+          <p class="text-[12.5px] sm:text-[13px] text-gray mt-1">{{ activeMeta.desc }}</p>
         </div>
 
         <!-- แต่ละแท็บ mount ใหม่ทุกครั้งที่สลับ จึงโหลดข้อมูลสดเสมอ -->

@@ -26,7 +26,7 @@ const combinedItems = computed(() => {
 </script>
 
 <template>
-  <div class="max-w-[1000px] mx-auto px-6 py-8">
+  <div class="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
     <h2 class="font-mali text-xl font-bold text-dark mb-5 flex items-center gap-2">
       <ClipboardList :size="20" :stroke-width="2.5" />
       งานทั้งหมด
@@ -42,34 +42,34 @@ const combinedItems = computed(() => {
       ยังไม่มีงานในห้องนี้
     </div>
 
-    <ul v-else class="flex flex-col gap-5">
+    <ul v-else class="flex flex-col gap-4 sm:gap-5">
       <li v-for="item in combinedItems" :key="`${item.kind}-${item.id}`">
         <!-- การ์ดการบ้าน -->
         <router-link v-if="item.kind === 'assignment'"
-          :to="{ name: 'student-assignment-detail', params: { id: classroomId, assignmentId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
+          :to="{ name: 'student-assignment-detail', params: { id: classroomId, assignmentId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-5
              hover:-translate-y-1 hover:shadow-offset-lg transition">
           <div class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-orange flex items-center justify-center">
             <ClipboardList :size="18" :stroke-width="2.5" class="text-dark" />
           </div>
-          <div class="flex-1 min-w-0 flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0 flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
             <div class="min-w-0">
-              <p class="font-mali font-bold text-[17px] text-dark">{{ item.title }}</p>
-              <p v-if="item.description" class="text-[13px] text-gray mt-1.5 line-clamp-1">
+              <p class="font-mali font-bold text-[16px] sm:text-[17px] text-dark break-words">{{ item.title }}</p>
+              <p v-if="item.description" class="text-[12.5px] sm:text-[13px] text-gray mt-1.5 line-clamp-1">
                 {{ item.description }}
               </p>
               <div class="flex items-center gap-4 mt-2.5 flex-wrap">
-                <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[12px] text-gray font-mono">
+                <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-gray font-mono">
                   <Calendar :size="13" :stroke-width="2.5" />
                   ส่งภายใน {{ formatDate(item.due_date) }}
                 </span>
-                <span class="inline-flex items-center gap-1.5 text-[12px] text-gray font-mono">
+                <span class="inline-flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-gray font-mono">
                   <Star :size="13" :stroke-width="2.5" />
                   {{ item.max_score }} คะแนน
                 </span>
               </div>
             </div>
 
-            <div class="shrink-0 flex items-center gap-2">
+            <div class="shrink-0 flex items-center gap-2 flex-wrap sm:flex-nowrap">
               <span v-if="mySubmissionFor(item.id)?.score !== null && mySubmissionFor(item.id)?.score !== undefined"
                 class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-green-100 text-green-dark whitespace-nowrap">
                 ✓ {{ mySubmissionFor(item.id).score }}/{{ item.max_score }}
@@ -90,28 +90,28 @@ const combinedItems = computed(() => {
         </router-link>
 
         <!-- การ์ด Quiz -->
-        <router-link v-else :to="{ name: 'student-quiz-detail', params: { id: classroomId, quizId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-5
+        <router-link v-else :to="{ name: 'student-quiz-detail', params: { id: classroomId, quizId: item.id } }" class="flex items-start gap-3 bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-5
              hover:-translate-y-1 hover:shadow-offset-lg transition">
           <div
             class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
             <FileQuestion :size="18" :stroke-width="2.5" class="text-dark" />
           </div>
-          <div class="flex-1 min-w-0 flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0 flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-4">
             <div class="min-w-0">
-              <p class="font-mali font-bold text-[17px] text-dark">{{ item.title }}</p>
+              <p class="font-mali font-bold text-[16px] sm:text-[17px] text-dark break-words">{{ item.title }}</p>
               <div class="flex items-center gap-4 mt-2.5 flex-wrap">
-                <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[12px] text-gray font-mono">
+                <span v-if="item.due_date" class="inline-flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-gray font-mono">
                   <Calendar :size="13" :stroke-width="2.5" />
                   ส่งภายใน {{ formatDate(item.due_date) }}
                 </span>
-                <span class="inline-flex items-center gap-1.5 text-[12px] text-gray font-mono">
+                <span class="inline-flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-gray font-mono">
                   <Star :size="13" :stroke-width="2.5" />
                   {{ item.max_score }} คะแนน
                 </span>
               </div>
             </div>
 
-            <div class="shrink-0 flex items-center gap-2">
+            <div class="shrink-0 flex items-center gap-2 flex-wrap sm:flex-nowrap">
               <span v-if="myQuizSubmissionFor(item.id)?.is_graded"
                 class="border-2 border-dark rounded-2xl px-3 py-1 font-mono text-[11px] font-bold bg-green-100 text-green-dark whitespace-nowrap">
                 ✓ {{ myQuizSubmissionFor(item.id).score }}/{{ item.max_score }}

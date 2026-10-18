@@ -20,8 +20,6 @@ const homePath = computed(() => {
 })
 const notificationsOn = computed(() => !!profile.value?.notifications_enabled)
 
-
-
 const breadcrumb = computed(() =>
     route.query.from === 'profile'
         ? [
@@ -289,9 +287,9 @@ const inputClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-dark bg-whit
 
 <template>
     <div class="bg-gray-light min-h-screen font-mitr">
-              <AppNavbar :show-search="false" :breadcrumb="breadcrumb" />
+        <AppNavbar :show-search="false" :breadcrumb="breadcrumb" />
 
-        <main class="max-w-[960px] mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6 items-start">
+        <main class="max-w-[960px] mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col lg:flex-row gap-5 lg:gap-6 items-start">
 
             <!-- ============ Sidebar หมวดตั้งค่า ============ -->
             <aside class="w-full lg:w-[240px] shrink-0">
@@ -327,11 +325,11 @@ const inputClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-dark bg-whit
             </aside>
 
             <!-- ============ เนื้อหาของหมวดที่เลือก ============ -->
-            <section class="flex-1 min-w-0 w-full bg-white border-3 border-dark rounded-2xl shadow-offset p-6">
+            <section class="flex-1 min-w-0 w-full bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-6">
 
                 <header class="pb-4 mb-5 border-b-2 border-dark/10">
-                    <h1 class="font-mali font-bold text-[20px] text-dark">{{ activeMeta.label }}</h1>
-                    <p class="text-[13px] text-gray mt-1">{{ activeMeta.desc }}</p>
+                    <h1 class="font-mali font-bold text-[18px] sm:text-[20px] text-dark">{{ activeMeta.label }}</h1>
+                    <p class="text-[12.5px] sm:text-[13px] text-gray mt-1">{{ activeMeta.desc }}</p>
                 </header>
 
                 <!-- ---------- บัญชี ---------- -->
@@ -418,146 +416,100 @@ const inputClass = `w-full px-3.5 py-2.5 rounded-xl border-2 border-dark bg-whit
 
                         <label class="flex flex-col gap-1.5">
                             <span class="text-[12px] font-semibold text-dark">อีเมล</span>
-                            <input v-model="editEmail" type="email" placeholder="name@example.com" autocomplete="email"
+                            <input v-model="editEmail" type="email" placeholder="you@example.com" autocomplete="email"
                                 :class="inputClass" />
-                            <span v-if="emailChanged && emailValid" class="text-[11.5px] text-gray">
-                                เมื่อบันทึก ระบบจะส่งลิงก์ยืนยันไปที่อีเมลใหม่ และอีเมลจะเปลี่ยนหลังคุณกดยืนยัน
-                            </span>
-                            <span v-else-if="emailChanged && !emailValid" class="text-[11.5px] text-red-600">
-                                รูปแบบอีเมลไม่ถูกต้อง
-                            </span>
                         </label>
 
-                        <div role="status" class="flex flex-col gap-2 empty:hidden">
-                            <p v-if="saveSuccess"
-                                class="text-[12.5px] font-semibold text-dark inline-flex items-center gap-1.5">
-                                <Check :size="14" :stroke-width="3" />
-                                {{ saveSuccess }}
-                            </p>
-                            <p v-if="saveError" class="text-[12.5px] text-red-600">{{ saveError }}</p>
+                        <div role="alert" v-if="saveError" class="text-[12.5px] text-red-600 bg-red-50 border-2 border-red-300 rounded-xl px-3 py-2">
+                            {{ saveError }}
                         </div>
 
-                        <div class="flex flex-wrap items-center gap-3 pt-1">
-                            <button type="submit" :disabled="!canSave"
-                                class="px-5 py-2.5 rounded-xl border-2 border-dark bg-purple text-dark text-[13px] font-bold
-                                       shadow-[3px_3px_0_0_#1a1a1a] hover:-translate-y-0.5
-                                       active:translate-y-0.5 active:shadow-none
-                                       disabled:opacity-40 disabled:shadow-none disabled:pointer-events-none transition">
-                                {{ saving ? 'กำลังบันทึก...' : 'บันทึกการเปลี่ยนแปลง' }}
-                            </button>
-                            <button type="button" @click="cancelEdit" :disabled="saving"
-                                class="px-5 py-2.5 rounded-xl border-2 border-dark bg-white text-dark text-[13px] font-bold
-                                       hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-50 transition">
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button type="button" @click="cancelEdit"
+                                class="flex-1 px-5 py-2.5 rounded-xl border-2 border-dark bg-white text-dark text-[13px] font-bold hover:bg-gray-light transition">
                                 ยกเลิก
                             </button>
-                            <span v-if="isDirty && !saving" class="text-[12px] text-gray">มีการแก้ไขที่ยังไม่ได้บันทึก</span>
+                            <button type="submit" :disabled="!canSave"
+                                class="flex-1 px-5 py-2.5 rounded-xl border-2 border-dark bg-orange text-dark text-[13px] font-bold
+                                       hover:-translate-y-0.5 transition disabled:opacity-40 disabled:hover:translate-y-0">
+                                {{ saving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล' }}
+                            </button>
                         </div>
                     </form>
                 </div>
 
                 <!-- ---------- ความปลอดภัย ---------- -->
-                <form v-else-if="activeTab === 'security'" class="flex flex-col gap-4 max-w-[520px]"
-                    @submit.prevent="changePassword">
-
-                    <label class="flex flex-col gap-1.5">
-                        <span class="text-[12px] font-semibold text-dark">รหัสผ่านปัจจุบัน</span>
-                        <input v-model="pwCurrent" :type="showPw ? 'text' : 'password'"
-                            autocomplete="current-password" :class="inputClass" />
-                    </label>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label class="flex flex-col gap-1.5">
-                            <span class="text-[12px] font-semibold text-dark">รหัสผ่านใหม่</span>
-                            <input v-model="pwNew" :type="showPw ? 'text' : 'password'"
-                                autocomplete="new-password" :class="inputClass" />
-                        </label>
-                        <label class="flex flex-col gap-1.5">
-                            <span class="text-[12px] font-semibold text-dark">ยืนยันรหัสผ่านใหม่</span>
-                            <input v-model="pwConfirm" :type="showPw ? 'text' : 'password'"
-                                autocomplete="new-password" :class="inputClass" />
-                        </label>
+                <div v-else-if="activeTab === 'security'" class="max-w-[520px] flex flex-col gap-4">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[12px] font-semibold text-dark">รหัสผ่านปัจจุบัน</label>
+                        <div class="relative">
+                            <input v-model="pwCurrent" :type="showPw ? 'text' : 'password'" :class="inputClass" />
+                            <button type="button" @click="showPw = !showPw" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray hover:text-dark">
+                                <Eye v-if="!showPw" :size="16" :stroke-width="2.5" />
+                                <EyeOff v-else :size="16" :stroke-width="2.5" />
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[12px] font-semibold text-dark">รหัสผ่านใหม่</label>
+                        <input v-model="pwNew" type="password" :class="inputClass" />
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-[12px] font-semibold text-dark">ยืนยันรหัสผ่านใหม่</label>
+                        <input v-model="pwConfirm" type="password" :class="inputClass" />
                     </div>
 
-                    <p v-if="pwHint" class="text-[11.5px] text-red-600 -mt-1">{{ pwHint }}</p>
-                    <p v-else class="text-[11.5px] text-gray -mt-1">รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร</p>
+                    <p v-if="pwHint" class="text-[12.5px] text-gray">{{ pwHint }}</p>
+                    <div role="alert" v-if="pwError" class="text-[12.5px] text-red-600 bg-red-50 border-2 border-red-300 rounded-xl px-3 py-2">
+                        {{ pwError }}
+                    </div>
+                    <div role="status" v-if="pwSuccess" class="text-[12.5px] text-dark bg-green-50 border-2 border-green-300 rounded-xl px-3 py-2">
+                        {{ pwSuccess }}
+                    </div>
 
-                    <button type="button" @click="showPw = !showPw" :aria-pressed="showPw"
-                        class="inline-flex items-center gap-1.5 self-start text-[12.5px] font-semibold text-dark hover:underline">
-                        <component :is="showPw ? EyeOff : Eye" :size="14" :stroke-width="2.5" />
-                        {{ showPw ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน' }}
+                    <button type="button" @click="changePassword" :disabled="!canChangePw"
+                        class="self-start px-5 py-2.5 rounded-xl border-2 border-dark bg-orange text-dark text-[13px] font-bold
+                               shadow-[3px_3px_0_0_#1a1a1a] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none
+                               disabled:opacity-40 disabled:shadow-none disabled:pointer-events-none transition">
+                        {{ pwSaving ? 'กำลังเปลี่ยน...' : 'เปลี่ยนรหัสผ่าน' }}
                     </button>
-
-                    <div role="status" class="flex flex-col gap-2 empty:hidden">
-                        <p v-if="pwSuccess"
-                            class="text-[12.5px] font-semibold text-dark inline-flex items-center gap-1.5">
-                            <Check :size="14" :stroke-width="3" />
-                            {{ pwSuccess }}
-                        </p>
-                        <p v-if="pwError" class="text-[12.5px] text-red-600">{{ pwError }}</p>
-                    </div>
-
-                    <div>
-                        <button type="submit" :disabled="!canChangePw"
-                            class="px-5 py-2.5 rounded-xl border-2 border-dark bg-purple text-dark text-[13px] font-bold
-                                   shadow-[3px_3px_0_0_#1a1a1a] hover:-translate-y-0.5
-                                   active:translate-y-0.5 active:shadow-none
-                                   disabled:opacity-40 disabled:shadow-none disabled:pointer-events-none transition">
-                            {{ pwSaving ? 'กำลังบันทึก...' : 'เปลี่ยนรหัสผ่าน' }}
-                        </button>
-                    </div>
-                </form>
+                </div>
 
                 <!-- ---------- การแจ้งเตือน ---------- -->
-                <div v-else-if="activeTab === 'notifications'" class="max-w-[520px]">
-                    <button type="button" role="switch" :aria-checked="notificationsOn" @click="toggleNotifications"
-                        :disabled="savingNotif || !profile"
-                        class="w-full flex items-center gap-3.5 px-3 py-3 -mx-3 rounded-xl text-left
-                               hover:bg-gray-light transition disabled:opacity-60 disabled:cursor-not-allowed">
-                        <div class="w-11 h-11 shrink-0 rounded-xl border-2 border-dark flex items-center justify-center transition-colors"
-                            :class="notificationsOn ? 'bg-purple-light' : 'bg-gray-light'">
-                            <component :is="notificationsOn ? Bell : BellOff" :size="20" :stroke-width="2.5"
-                                class="text-dark" />
+                <div v-else-if="activeTab === 'notifications'" class="max-w-[520px] flex flex-col gap-4">
+                    <div class="bg-white border-2 border-dark rounded-xl p-4 flex items-center justify-between gap-3">
+                        <div>
+                            <p class="font-semibold text-[14px] text-dark">รับการแจ้งเตือน</p>
+                            <p class="text-[12px] text-gray">เปิดหรือปิดแจ้งเตือนสำหรับกิจกรรมต่าง ๆ</p>
                         </div>
-
-                        <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-[14.5px] text-dark">รับการแจ้งเตือน</p>
-                            <p class="text-[12.5px] text-gray">{{ notificationsOn ? 'เปิดอยู่' : 'ปิดอยู่' }}</p>
-                        </div>
-
-                        <span aria-hidden="true"
-                            class="relative w-[52px] h-[28px] rounded-full border-2 border-dark shrink-0 transition-colors duration-200"
-                            :class="notificationsOn ? 'bg-purple' : 'bg-gray-200'">
-                            <span
-                                class="absolute top-[2px] left-[2px] w-[20px] h-[20px] rounded-full bg-white border-2 border-dark transition-transform duration-200"
-                                :class="notificationsOn ? 'translate-x-[24px]' : 'translate-x-0'"></span>
-                        </span>
-                    </button>
-
-                    <p class="text-[12px] text-gray mt-3">การเปลี่ยนแปลงในหมวดนี้จะบันทึกทันที ไม่ต้องกดบันทึก</p>
-                    <p v-if="notifError" role="status" class="text-[12.5px] text-red-600 mt-2">{{ notifError }}</p>
+                        <button type="button" @click="toggleNotifications" :disabled="savingNotif"
+                            class="relative inline-flex h-7 w-12 items-center rounded-full border-2 border-dark transition-colors"
+                            :class="notificationsOn ? 'bg-orange' : 'bg-gray-200'">
+                            <span class="inline-block h-5 w-5 rounded-full bg-white border-2 border-dark transition-transform"
+                                :class="notificationsOn ? 'translate-x-6' : 'translate-x-0.5'"></span>
+                        </button>
+                    </div>
+                    <div v-if="notifError" class="text-[12.5px] text-red-600 bg-red-50 border-2 border-red-300 rounded-xl px-3 py-2">
+                        {{ notifError }}
+                    </div>
                 </div>
 
                 <!-- ---------- ความช่วยเหลือ ---------- -->
-                <div v-else-if="activeTab === 'help'" class="max-w-[520px]">
+                <div v-else-if="activeTab === 'help'" class="max-w-[520px] flex flex-col gap-4">
+                    <div class="bg-purple-light border-2 border-dark rounded-xl p-4">
+                        <p class="text-[14px] font-semibold text-dark">พบปัญหาการใช้งาน</p>
+                        <p class="text-[12.5px] text-gray mt-1">กรุณาติดต่อเจ้าหน้าที่เพื่อช่วยเหลือ</p>
+                    </div>
                     <button type="button" @click="contactStaff"
-                        class="group w-full flex items-center gap-3.5 px-3 py-3 -mx-3 rounded-xl text-left
-                               hover:bg-gray-light transition">
-                        <div
-                            class="w-11 h-11 shrink-0 rounded-xl border-2 border-dark bg-orange flex items-center justify-center">
-                            <MessageCircle :size="20" :stroke-width="2.5" class="text-dark" />
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="font-semibold text-[14.5px] text-dark">ติดต่อเจ้าหน้าที่</p>
-                            <p class="text-[12.5px] text-gray">ส่งอีเมลถึงทีมงาน</p>
-                        </div>
-                        <ChevronRight :size="16" :stroke-width="2.5"
-                            class="shrink-0 text-dark group-hover:translate-x-0.5 transition-transform" />
+                        class="self-start inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-dark bg-white text-dark text-[13px] font-bold hover:bg-gray-light transition">
+                        <MessageCircle :size="14" :stroke-width="2.5" />
+                        ติดต่อเจ้าหน้าที่
                     </button>
                 </div>
             </section>
         </main>
 
-        <AvatarModal v-model="showAvatarModal" />
+        <AvatarModal v-if="showAvatarModal" @close="showAvatarModal = false" />
         <LogoutModal v-model="showLogoutModal" />
     </div>
 </template>

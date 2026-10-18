@@ -31,7 +31,7 @@ function initials(m) {
 </script>
 
 <template>
-  <div class="max-w-[1000px] mx-auto px-6 py-8">
+  <div class="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
     <div v-if="classroom" class="bg-purple-light border-3 border-dark rounded-2xl shadow-offset p-5 mb-6
                                   flex items-center gap-4">
       <div class="w-12 h-12 shrink-0 rounded-full border-3 border-dark bg-white overflow-hidden">
@@ -40,7 +40,7 @@ function initials(m) {
       </div>
       <div>
         <p class="text-[11px] font-bold text-gray font-mono uppercase">ครูประจำวิชา</p>
-        <p class="font-mali font-bold text-[17px] text-dark">
+        <p class="font-mali font-bold text-[16px] sm:text-[17px] text-dark">
           {{ classroom.profiles?.name }} {{ classroom.profiles?.lastname }}
         </p>
       </div>
@@ -54,10 +54,10 @@ function initials(m) {
         <span class="text-[13px] text-gray font-mitr font-normal">({{ members.length }} คน)</span>
       </h2>
 
-      <div class="relative">
+      <div class="relative w-full sm:w-auto">
         <Search :size="15" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray" />
         <input v-model="search" type="text" placeholder="ค้นหาชื่อเพื่อน..." class="pl-9 pr-3 py-2 text-[13.5px] border-3 border-dark rounded-xl
-                      bg-white focus:outline-none focus:bg-purple-light/30 transition w-[220px]" />
+                      bg-white focus:outline-none focus:bg-purple-light/30 transition w-full sm:w-[220px]" />
       </div>
     </div>
 
@@ -89,7 +89,7 @@ function initials(m) {
             alt="เพื่อนร่วมห้อง" />
           <span v-else>{{ initials(member) }}</span>
         </div>
-        <p class="min-w-0 text-[13.5px] font-medium truncate">
+        <p class="min-w-0 text-[13px] sm:text-[13.5px] font-medium truncate">
           {{ member.profiles?.name }} {{ member.profiles?.lastname }}
         </p>
       </div>

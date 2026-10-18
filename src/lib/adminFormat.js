@@ -1,6 +1,3 @@
-// src/lib/adminFormat.js
-// ค่าคงที่ + ตัวช่วยจัดรูปแบบที่ใช้ร่วมกันในหน้า Admin ทุกแท็บ
-import { displayName } from './personName.js'
 // งบ token ต่อเดือน (ปรับตัวเลขนี้ที่เดียว)
 export const MONTHLY_TOKEN_BUDGET = 1_000_000
 
@@ -27,6 +24,15 @@ export const fmtDate = (ts) =>
   ts ? new Date(ts).toLocaleDateString('th-TH', { dateStyle: 'medium', timeZone: 'Asia/Bangkok' }) : '-'
 export const dayLabel = (s) =>
   new Date(s + 'T00:00:00').toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })
+
+export const displayName = (u) => {
+  const fromMeta = u?.user_metadata?.full_name || u?.user_metadata?.name || u?.user_metadata?.display_name
+  const fromProfile = u?.full_name || u?.display_name || u?.name || u?.username
+  const fromParts = [u?.first_name, u?.last_name].filter(Boolean).join(' ').trim()
+  const fallback = [u?.firstname, u?.lastname].filter(Boolean).join(' ').trim()
+  return (fromMeta || fromProfile || fromParts || fallback || '').trim()
+}
+
 export const fullName = (u) => displayName(u) || u?.email || 'ผู้ใช้'
 
 export const monthLabel = new Date().toLocaleDateString('th-TH', {

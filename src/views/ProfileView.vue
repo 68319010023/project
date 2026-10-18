@@ -101,19 +101,19 @@ onMounted(() => {
 
 <template>
     <div class="bg-gray-light min-h-screen font-mitr">
-        <AppNavbar :show-search="false" :breadcrumb="[
+        <AppNavbar :show-search="false" :breadcrumb=" [
             { label: 'หน้ารวมห้องเรียน', to: homePath },
             { label: 'โปรไฟล์ของฉัน' }
         ]" />
 
-        <main class="max-w-[1100px] mx-auto px-6 py-8 flex flex-col lg:flex-row gap-6 items-start">
+        <main class="max-w-[1100px] mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col lg:flex-row gap-5 lg:gap-6 items-start">
 
             <!-- ============ Sidebar ซ้าย ============ -->
             <aside class="w-full lg:w-[280px] shrink-0 flex flex-col gap-5">
 
                 <!-- การ์ดโปรไฟล์ (พื้นเข้ม) -->
                 <div
-                    class="relative overflow-hidden bg-dark text-white border-3 border-dark rounded-2xl shadow-offset p-6">
+                    class="relative overflow-hidden bg-dark text-white border-3 border-dark rounded-2xl shadow-offset p-5 sm:p-6">
                     <div class="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10 pointer-events-none">
                     </div>
 
@@ -174,44 +174,44 @@ onMounted(() => {
                 <!-- คำทักทาย + ปุ่มหลัก -->
                 <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
-                        <h1 class="font-mali font-bold text-2xl text-dark">{{ greeting }}คุณ {{ profile?.name }}</h1>
-                        <p class="text-[13px] text-gray mt-1">{{ todayLabel }} · นี่คือภาพรวมบัญชีของคุณ</p>
+                        <h1 class="font-mali font-bold text-[22px] sm:text-2xl text-dark">{{ greeting }}คุณ {{ profile?.name }}</h1>
+                        <p class="text-[12.5px] sm:text-[13px] text-gray mt-1">{{ todayLabel }} · นี่คือภาพรวมบัญชีของคุณ</p>
                     </div>
                     <router-link :to="homePath"
-                        class="shrink-0 self-start inline-flex items-center px-5 py-2.5 rounded-full border-3 border-dark bg-orange text-dark text-[13px] font-bold shadow-offset hover:-translate-y-0.5 transition">
+                        class="shrink-0 self-start inline-flex items-center px-4 sm:px-5 py-2.5 rounded-full border-3 border-dark bg-orange text-dark text-[12.5px] sm:text-[13px] font-bold shadow-offset hover:-translate-y-0.5 transition">
                         ไปหน้ารวมห้องเรียน
                     </router-link>
                 </div>
 
                 <!-- Stat cards -->
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-5 flex items-center gap-3">
+                <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-5 flex items-center gap-3">
                         <div
                             class="w-11 h-11 shrink-0 rounded-xl border-2 border-dark bg-purple-light flex items-center justify-center">
                             <School :size="20" :stroke-width="2.5" class="text-dark" />
                         </div>
                         <div class="min-w-0">
-                            <p class="font-mali font-bold text-2xl text-dark leading-none">{{ classrooms.length }}</p>
-                            <p class="text-[12px] text-gray mt-1">{{ isTeacher ? 'ห้องที่สอน' : 'ห้องที่เข้าร่วม' }}</p>
+                            <p class="font-mali font-bold text-[22px] sm:text-2xl text-dark leading-none">{{ classrooms.length }}</p>
+                            <p class="text-[11.5px] sm:text-[12px] text-gray mt-1">{{ isTeacher ? 'ห้องที่สอน' : 'ห้องที่เข้าร่วม' }}</p>
                         </div>
                     </div>
 
-                    <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-5 flex items-center gap-3">
+                    <div class="bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-5 flex items-center gap-3">
                         <div
                             class="w-11 h-11 shrink-0 rounded-xl border-2 border-dark bg-orange flex items-center justify-center">
                             <Layers :size="20" :stroke-width="2.5" class="text-dark" />
                         </div>
                         <div class="min-w-0">
-                            <p class="font-mali font-bold text-2xl text-dark leading-none">{{ uniqueGradeLevels }}</p>
-                            <p class="text-[12px] text-gray mt-1">ระดับชั้นที่เกี่ยวข้อง</p>
+                            <p class="font-mali font-bold text-[22px] sm:text-2xl text-dark leading-none">{{ uniqueGradeLevels }}</p>
+                            <p class="text-[11.5px] sm:text-[12px] text-gray mt-1">ระดับชั้นที่เกี่ยวข้อง</p>
                         </div>
                     </div>
                 </div>
 
                 <!-- รายชื่อห้องเรียน (แถวแบบรายการ) -->
                 <section id="my-classrooms"
-                    class="bg-white border-3 border-dark rounded-2xl shadow-offset p-6 scroll-mt-24">
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    class="bg-white border-3 border-dark rounded-2xl shadow-offset p-4 sm:p-6 scroll-mt-24">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                         <h3 class="font-mali font-bold text-[16px] text-dark">
                             {{ classroomsTitle }}
                             <span v-if="!loadingClassrooms" class="text-[12.5px] text-gray font-mitr font-normal">
@@ -244,7 +244,7 @@ onMounted(() => {
                     </p>
                     <ul v-else class="flex flex-col gap-3">
                         <li v-for="c in pagedClassrooms" :key="c.id">
-                            <router-link :to="{ name: 'classroom-detail', params: { id: c.id } }" class="group flex items-center gap-3 px-3.5 py-3 rounded-xl border-2 border-dark
+                            <router-link :to="{ name: 'classroom-detail', params: { id: c.id } }" class="group flex items-center gap-3 px-3 py-3 sm:px-3.5 rounded-xl border-2 border-dark
                                    hover:bg-gray-light hover:-translate-y-0.5 transition">
                                 <div
                                     class="w-10 h-10 shrink-0 rounded-lg border-2 border-dark bg-purple-light flex items-center justify-center">
@@ -252,43 +252,26 @@ onMounted(() => {
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-[13.5px] font-semibold text-dark truncate">{{ c.name }}</p>
-                                    <p v-if="c.grade_level" class="text-[11.5px] text-gray">ระดับชั้น {{ c.grade_level
-                                        }}</p>
+                                    <p v-if="c.grade_level" class="text-[11.5px] text-gray">ระดับชั้น {{ c.grade_level }}</p>
                                 </div>
                                 <span v-if="c.grade_level"
                                     class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold">
                                     {{ c.grade_level }}
                                 </span>
-                                <ChevronRight :size="16" :stroke-width="2.5"
-                                    class="shrink-0 text-dark group-hover:translate-x-0.5 transition-transform" />
+                                <ChevronRight :size="16" :stroke-width="2.5" class="shrink-0 text-gray" />
                             </router-link>
                         </li>
                     </ul>
 
-                    <!-- เปลี่ยนหน้า -->
-                    <div v-if="totalPages > 1"
-                        class="mt-5 pt-4 border-t-2 border-dark/10 flex items-center justify-center gap-2">
-                        <button type="button" @click="currentPage--" :disabled="currentPage === 1"
-                            aria-label="หน้าก่อนหน้า"
-                            class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-                               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
-                            <ChevronLeft :size="16" :stroke-width="3" />
+                    <div v-if="filteredClassrooms.length > pageSize" class="flex items-center justify-center gap-2 mt-5">
+                        <button type="button" @click="currentPage = Math.max(1, currentPage - 1)" :disabled="currentPage === 1"
+                            class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center disabled:opacity-40">
+                            <ChevronLeft :size="16" :stroke-width="2.5" />
                         </button>
-
-                        <button v-for="p in totalPages" :key="p" type="button" @click="currentPage = p"
-                            :aria-current="p === currentPage ? 'page' : undefined"
-                            class="min-w-[36px] h-9 px-2 rounded-lg border-2 border-dark text-[13px] font-bold transition"
-                            :class="p === currentPage
-                                ? 'bg-orange text-dark'
-                                : 'bg-white text-dark hover:bg-gray-light hover:-translate-y-0.5'">
-                            {{ p }}
-                        </button>
-
-                        <button type="button" @click="currentPage++" :disabled="currentPage === totalPages"
-                            aria-label="หน้าถัดไป"
-                            class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-                               hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
-                            <ChevronRight :size="16" :stroke-width="3" />
+                        <span class="text-[12px] font-semibold text-dark">หน้า {{ currentPage }}/{{ totalPages }}</span>
+                        <button type="button" @click="currentPage = Math.min(totalPages, currentPage + 1)" :disabled="currentPage === totalPages"
+                            class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center disabled:opacity-40">
+                            <ChevronRight :size="16" :stroke-width="2.5" />
                         </button>
                     </div>
                 </section>

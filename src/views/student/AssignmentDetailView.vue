@@ -432,7 +432,7 @@ onMounted(async () => {
 
     <template v-else>
       <!-- ===== แถบหัวเรื่อง ===== -->
-      <div class="relative overflow-hidden border-b-[3px] border-dark px-6 py-8"
+      <div class="relative overflow-hidden border-b-[3px] border-dark px-4 sm:px-6 py-6 sm:py-8"
         :style="{ background: `linear-gradient(135deg, ${roomColor.from} 0%, ${roomColor.to} 100%)` }">
         <div class="absolute inset-0 pointer-events-none opacity-[0.12]"
           style="background-image: radial-gradient(#1a1a1a 1.5px, transparent 1.5px); background-size: 18px 18px;" />
@@ -445,11 +445,11 @@ onMounted(async () => {
             กลับห้องเรียน
           </router-link>
 
-          <h1 class="font-mali font-bold text-3xl text-dark break-words">{{ assignmentDetail.title }}</h1>
+          <h1 class="font-mali font-bold text-[26px] sm:text-3xl text-dark break-words">{{ assignmentDetail.title }}</h1>
 
           <div class="mt-3 flex flex-wrap items-center gap-2.5">
             <span v-if="teacherName"
-              class="inline-flex items-center gap-2 border-2 border-dark rounded-full pl-1 pr-3 py-1 bg-white/80 text-[13px] font-semibold text-dark">
+              class="inline-flex items-center gap-2 border-2 border-dark rounded-full pl-1 pr-3 py-1 bg-white/80 text-[12px] sm:text-[13px] font-semibold text-dark">
               <span class="w-6 h-6 rounded-full border-2 border-dark overflow-hidden bg-purple-light flex items-center justify-center
                            text-[10px] font-bold font-mali">
                 <img v-if="teacherProfile?.img" :src="teacherProfile.img" class="w-full h-full object-cover" alt="" />
@@ -459,20 +459,20 @@ onMounted(async () => {
             </span>
 
             <span v-if="assignmentDetail.due_date"
-              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[11.5px] sm:text-[12.5px] font-semibold text-dark">
               <Calendar :size="14" :stroke-width="2.5" />
               ส่งภายใน {{ formatDate(assignmentDetail.due_date) }}
             </span>
 
             <span v-if="dueChip"
-              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 text-[12.5px] font-bold text-dark shadow-[2px_2px_0_#1a1a1a]"
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 text-[11.5px] sm:text-[12.5px] font-bold text-dark shadow-[2px_2px_0_#1a1a1a]"
               :class="dueChip.cls">
               <Hourglass :size="13" :stroke-width="2.5" />
               {{ dueChip.text }}
             </span>
 
             <span
-              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
+              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[11.5px] sm:text-[12.5px] font-semibold text-dark">
               <Star :size="14" :stroke-width="2.5" />
               {{ assignmentDetail.max_score }} คะแนน
             </span>
@@ -480,9 +480,9 @@ onMounted(async () => {
         </div>
       </div>
 
-      <main class="max-w-[1000px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
+      <main class="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6 items-start">
         <!-- ซ้าย: เนื้อหางาน -->
-        <div class="bg-white border-[3px] border-dark rounded-2xl shadow-[6px_6px_0_#1a1a1a] p-6">
+        <div class="bg-white border-[3px] border-dark rounded-2xl shadow-[6px_6px_0_#1a1a1a] p-4 sm:p-6">
           <h2 class="font-mali font-bold text-[16px] text-dark mb-3">รายละเอียดงาน</h2>
 
           <p v-if="assignmentDetail.description" class="text-[14.5px] text-dark leading-relaxed whitespace-pre-wrap">

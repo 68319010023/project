@@ -215,51 +215,51 @@ onMounted(async () => {
     ]" />
 
     <!-- ===== แถบหัวเรื่อง ===== -->
-    <div class="relative overflow-hidden border-b-[3px] border-dark px-6 py-8"
-      :style="{ background: `linear-gradient(135deg, ${roomColor.from} 0%, ${roomColor.to} 100%)` }">
-      <div class="absolute inset-0 pointer-events-none opacity-[0.12]"
-        style="background-image: radial-gradient(#1a1a1a 1.5px, transparent 1.5px); background-size: 18px 18px;" />
+    <div class="relative overflow-hidden border-b-[3px] border-dark px-4 sm:px-6 py-6 sm:py-8"
+        :style="{ background: `linear-gradient(135deg, ${roomColor.from} 0%, ${roomColor.to} 100%)` }">
+        <div class="absolute inset-0 pointer-events-none opacity-[0.12]"
+          style="background-image: radial-gradient(#1a1a1a 1.5px, transparent 1.5px); background-size: 18px 18px;" />
 
-      <div class="max-w-[1000px] mx-auto relative">
-        <router-link :to="{ name: 'classroom-detail', params: { id: classroomId }, query: { tab: 'assignments' } }"
-          class="inline-flex items-center gap-1.5 mb-4 h-8 px-3 rounded-full border-2 border-dark bg-white text-[12.5px] font-bold text-dark
-                 shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 transition">
-          <ArrowLeft :size="14" :stroke-width="3" />
-          กลับห้องเรียน
-        </router-link>
+        <div class="max-w-[1000px] mx-auto relative">
+          <router-link :to="{ name: 'classroom-detail', params: { id: classroomId }, query: { tab: 'assignments' } }"
+            class="inline-flex items-center gap-1.5 mb-4 h-8 px-3 rounded-full border-2 border-dark bg-white text-[12.5px] font-bold text-dark
+                   shadow-[3px_3px_0_#1a1a1a] hover:-translate-y-0.5 transition">
+            <ArrowLeft :size="14" :stroke-width="3" />
+            กลับห้องเรียน
+          </router-link>
 
-        <div v-if="quizDetailLoading" class="h-[80px] rounded-2xl bg-white/40 animate-pulse" />
+          <div v-if="quizDetailLoading" class="h-[80px] rounded-2xl bg-white/40 animate-pulse" />
 
-        <template v-else-if="quizDetail">
-          <div class="flex items-start gap-3">
-            <div class="w-12 h-12 shrink-0 rounded-xl border-[3px] border-dark bg-white flex items-center justify-center
-                        shadow-[3px_3px_0_#1a1a1a] -rotate-3">
-              <FileQuestion :size="22" :stroke-width="2.5" class="text-dark" />
+          <template v-else-if="quizDetail">
+            <div class="flex items-start gap-3">
+              <div class="w-12 h-12 shrink-0 rounded-xl border-[3px] border-dark bg-white flex items-center justify-center
+                          shadow-[3px_3px_0_#1a1a1a] -rotate-3">
+                <FileQuestion :size="22" :stroke-width="2.5" class="text-dark" />
+              </div>
+              <h1 class="font-mali font-bold text-[26px] sm:text-3xl text-dark break-words min-w-0">{{ quizDetail.title }}</h1>
             </div>
-            <h1 class="font-mali font-bold text-3xl text-dark break-words min-w-0">{{ quizDetail.title }}</h1>
-          </div>
 
-          <div class="mt-3 flex flex-wrap items-center gap-2.5">
-            <span v-if="quizDetail.due_date"
-              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
-              <Calendar :size="14" :stroke-width="2.5" />
-              ส่งภายใน {{ formatDate(quizDetail.due_date) }}
-            </span>
-            <span
-              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
-              <Star :size="14" :stroke-width="2.5" />
-              {{ quizDetail.max_score }} คะแนนเต็ม
-            </span>
-            <span v-if="!questionsLoading"
-              class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[12.5px] font-semibold text-dark">
-              {{ questions.length }} ข้อ
-            </span>
-          </div>
-        </template>
+            <div class="mt-3 flex flex-wrap items-center gap-2.5">
+              <span v-if="quizDetail.due_date"
+                class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[11.5px] sm:text-[12.5px] font-semibold text-dark">
+                <Calendar :size="14" :stroke-width="2.5" />
+                ส่งภายใน {{ formatDate(quizDetail.due_date) }}
+              </span>
+              <span
+                class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[11.5px] sm:text-[12.5px] font-semibold text-dark">
+                <Star :size="14" :stroke-width="2.5" />
+                {{ quizDetail.max_score }} คะแนนเต็ม
+              </span>
+              <span v-if="!questionsLoading"
+                class="inline-flex items-center gap-1.5 border-2 border-dark rounded-full px-3 py-1 bg-white text-[11.5px] sm:text-[12.5px] font-semibold text-dark">
+                {{ questions.length }} ข้อ
+              </span>
+            </div>
+          </template>
+        </div>
       </div>
-    </div>
 
-    <div class="max-w-[1000px] mx-auto px-6 py-8">
+      <div class="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <p v-if="!quizDetailLoading && !quizDetail" class="text-center text-gray text-[14px] py-16">ไม่พบ Quiz นี้</p>
 
       <template v-else-if="quizDetail">

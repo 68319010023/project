@@ -15,13 +15,13 @@ const searchQuery = ref('')
         <AppNavbar :search-query="searchQuery" @update:search-query="searchQuery = $event"
             @open-create="showCreate = true" @open-join="showJoin = true" />
 
-        <main v-reveal class="max-w-[1200px] mx-auto px-6 py-10">
-            <section class="bg-gradient-to-br from-purple-light to-purple border-3 border-dark rounded-xl p-8 mb-10 shadow-offset animate-float-slow">
-                <p class="font-mali font-semibold text-[20px]">
+        <main v-reveal class="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 sm:py-10">
+            <section class="bg-gradient-to-br from-purple-light to-purple border-3 border-dark rounded-xl p-5 sm:p-8 mb-6 sm:mb-10 shadow-offset animate-float-slow">
+                <p class="font-mali font-semibold text-[18px] sm:text-[20px]">
                     สวัสดีคุณ {{ profile?.name }}
-                    <span class="inline-block origin-[70%_70%] animate-wave text-4xl">👋</span>
+                    <span class="inline-block origin-[70%_70%] animate-wave text-3xl sm:text-4xl">👋</span>
                 </p>
-                <h1 class="font-mali font-bold text-[28px] mt-4">
+                <h1 class="font-mali font-bold text-[22px] sm:text-[28px] mt-3 sm:mt-4 leading-tight">
                     {{ profile?.role === 'teacher' ? 'วันนี้มีห้องไหนต้องตรวจงานบ้าง?' : 'วันนี้เปิดสมุดหน้าไหนดี?' }}
                 </h1>
             </section>

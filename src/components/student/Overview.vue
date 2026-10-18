@@ -86,7 +86,7 @@ const urgencyClass = (a) => {
 </script>
 
 <template>
-  <div class="max-w-[1000px] mx-auto px-4 sm:px-6 py-8">
+  <div class="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
     <!-- Loading -->
     <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div class="sm:col-span-2 h-[150px] border-[3px] border-dark rounded-2xl bg-gray-light animate-pulse" />
@@ -108,9 +108,9 @@ const urgencyClass = (a) => {
           </div>
 
           <div class="flex items-end gap-2">
-            <span class="text-[48px] leading-none font-bold">{{ submittedCount }}</span>
-            <span class="text-[22px] leading-none font-bold text-dark/50 mb-1">/ {{ assignmentCount }}</span>
-            <span class="ml-auto font-mono text-[13px] font-bold border-2 border-dark bg-white rounded-lg px-2.5 py-1">
+            <span class="text-[40px] sm:text-[48px] leading-none font-bold">{{ submittedCount }}</span>
+            <span class="text-[18px] sm:text-[22px] leading-none font-bold text-dark/50 mb-1">/ {{ assignmentCount }}</span>
+            <span class="ml-auto font-mono text-[12px] sm:text-[13px] font-bold border-2 border-dark bg-white rounded-lg px-2.5 py-1">
               {{ progressPercent }}%
             </span>
           </div>
@@ -122,7 +122,7 @@ const urgencyClass = (a) => {
             />
           </div>
 
-          <p class="text-[13px] mt-3 font-medium">{{ cheerText }}</p>
+          <p class="text-[12.5px] sm:text-[13px] mt-3 font-medium">{{ cheerText }}</p>
         </div>
 
         <!-- ถ้าไม่โชว์ progress ให้โชว์การ์ดนับเฉยๆ -->
@@ -132,8 +132,8 @@ const urgencyClass = (a) => {
                  shadow-[6px_6px_0_#1a1a1a] hover:-translate-y-1 hover:shadow-[8px_8px_0_#1a1a1a] transition"
         >
           <CheckCircle2 :size="22" :stroke-width="2.5" class="mb-3" />
-          <p class="text-[48px] leading-none font-bold">{{ submittedCount }}</p>
-          <p class="text-[13px] text-gray mt-2">{{ submittedLabel }}</p>
+          <p class="text-[40px] sm:text-[48px] leading-none font-bold">{{ submittedCount }}</p>
+          <p class="text-[12.5px] sm:text-[13px] text-gray mt-2">{{ submittedLabel }}</p>
         </div>
 
         <!-- การ์ดเล็ก 2 ใบซ้อนกัน -->
@@ -146,7 +146,7 @@ const urgencyClass = (a) => {
               <ClipboardList :size="20" :stroke-width="2.5" />
             </div>
             <div>
-              <p class="text-[24px] leading-none font-bold">{{ assignmentCount }}</p>
+              <p class="text-[22px] leading-none font-bold">{{ assignmentCount }}</p>
               <p class="text-[12px] text-gray mt-1">งานทั้งหมด</p>
             </div>
           </div>
@@ -159,7 +159,7 @@ const urgencyClass = (a) => {
               <Users :size="20" :stroke-width="2.5" />
             </div>
             <div>
-              <p class="text-[24px] leading-none font-bold">{{ memberCount }}</p>
+              <p class="text-[22px] leading-none font-bold">{{ memberCount }}</p>
               <p class="text-[12px] text-gray mt-1">สมาชิก</p>
             </div>
           </div>
@@ -218,63 +218,22 @@ const urgencyClass = (a) => {
                     <p class="text-[12px] text-gray mt-0.5">กำหนดส่ง {{ a.due_date }}</p>
                   </div>
 
-                  <span
-                    class="shrink-0 font-mono text-[11.5px] font-bold border-2 border-dark rounded-lg px-2 py-1"
-                    :class="urgencyClass(a).chip"
-                  >
+                  <span class="shrink-0 inline-flex items-center gap-1 border-[3px] border-dark rounded-xl px-2 py-1 text-[11px] font-mono font-bold"
+                    :class="urgencyClass(a).chip">
                     {{ timeText(a) }}
                   </span>
-                  <ChevronRight :size="18" :stroke-width="3" class="shrink-0 group-hover:translate-x-0.5 transition" />
+                  <ChevronRight :size="18" :stroke-width="2.5" class="shrink-0 text-dark group-hover:translate-x-0.5 transition" />
                 </router-link>
               </li>
             </ul>
-
-            <!-- เปลี่ยนหน้า (เลยกำหนด) -->
-            <div v-if="overdueTotalPages > 1" class="mt-4 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                aria-label="หน้าก่อนหน้า"
-                :disabled="overduePage === 1"
-                class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-                       hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition"
-                @click="overduePage--"
-              >
-                <ChevronLeft :size="16" :stroke-width="3" />
-              </button>
-
-              <button
-                v-for="p in overdueTotalPages"
-                :key="p"
-                type="button"
-                :aria-current="p === overduePage ? 'page' : undefined"
-                class="min-w-[36px] h-9 px-2 rounded-lg border-2 border-dark text-[13px] font-bold transition"
-                :class="p === overduePage
-                  ? 'bg-orange text-dark'
-                  : 'bg-white text-dark hover:bg-gray-light hover:-translate-y-0.5'"
-                @click="overduePage = p"
-              >
-                {{ p }}
-              </button>
-
-              <button
-                type="button"
-                aria-label="หน้าถัดไป"
-                :disabled="overduePage === overdueTotalPages"
-                class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-                       hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition"
-                @click="overduePage++"
-              >
-                <ChevronRight :size="16" :stroke-width="3" />
-              </button>
-            </div>
           </section>
 
-          <!-- กลุ่ม: ใกล้ถึงกำหนด -->
+          <!-- กลุ่ม: ใกล้ครบกำหนด -->
           <section v-if="upcoming.length">
             <h3 class="font-mali font-bold text-[17px] mb-3 flex items-center gap-2">
-              <CalendarClock :size="20" :stroke-width="2.5" />
-              ใกล้ถึงกำหนด
-              <span class="font-mono text-[12px] bg-orange border-2 border-dark rounded-full px-2 py-0.5">
+              <CalendarClock :size="20" :stroke-width="2.5" class="text-purple" />
+              ใกล้กำหนดส่ง
+              <span class="font-mono text-[12px] bg-purple-light border-2 border-dark rounded-full px-2 py-0.5">
                 {{ upcoming.length }}
               </span>
             </h3>
@@ -300,56 +259,14 @@ const urgencyClass = (a) => {
                     <p class="text-[12px] text-gray mt-0.5">กำหนดส่ง {{ a.due_date }}</p>
                   </div>
 
-                  <span
-                    class="shrink-0 font-mono text-[11.5px] font-bold border-2 border-dark rounded-lg px-2 py-1 flex items-center gap-1"
-                    :class="urgencyClass(a).chip"
-                  >
-                    <Flame v-if="a.daysLeft <= 2" :size="12" :stroke-width="3" />
+                  <span class="shrink-0 inline-flex items-center gap-1 border-[3px] border-dark rounded-xl px-2 py-1 text-[11px] font-mono font-bold"
+                    :class="urgencyClass(a).chip">
                     {{ timeText(a) }}
                   </span>
-                  <ChevronRight :size="18" :stroke-width="3" class="shrink-0 group-hover:translate-x-0.5 transition" />
+                  <ChevronRight :size="18" :stroke-width="2.5" class="shrink-0 text-dark group-hover:translate-x-0.5 transition" />
                 </router-link>
               </li>
             </ul>
-
-            <!-- เปลี่ยนหน้า (ใกล้ถึงกำหนด) -->
-            <div v-if="upcomingTotalPages > 1" class="mt-4 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                aria-label="หน้าก่อนหน้า"
-                :disabled="upcomingPage === 1"
-                class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-                       hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition"
-                @click="upcomingPage--"
-              >
-                <ChevronLeft :size="16" :stroke-width="3" />
-              </button>
-
-              <button
-                v-for="p in upcomingTotalPages"
-                :key="p"
-                type="button"
-                :aria-current="p === upcomingPage ? 'page' : undefined"
-                class="min-w-[36px] h-9 px-2 rounded-lg border-2 border-dark text-[13px] font-bold transition"
-                :class="p === upcomingPage
-                  ? 'bg-orange text-dark'
-                  : 'bg-white text-dark hover:bg-gray-light hover:-translate-y-0.5'"
-                @click="upcomingPage = p"
-              >
-                {{ p }}
-              </button>
-
-              <button
-                type="button"
-                aria-label="หน้าถัดไป"
-                :disabled="upcomingPage === upcomingTotalPages"
-                class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
-                       hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition"
-                @click="upcomingPage++"
-              >
-                <ChevronRight :size="16" :stroke-width="3" />
-              </button>
-            </div>
           </section>
         </template>
       </div>
