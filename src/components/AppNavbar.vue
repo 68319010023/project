@@ -24,21 +24,22 @@ const props = defineProps({
 
 const effectiveBreadcrumb = computed(() => {
     if (route.path === '/settings') {
-      if (route.query.from === 'profile') {
-                    const homePath = profile.value?.role === 'teacher' ? '/teacher' : '/student'
-           return [
-               { label: 'หน้ารวมห้องเรียน', to: homePath },
-               { label: 'โปรไฟล์', to: '/profile' },
-               { label: 'หน้าตั้งค่า' },
-           ]
+        if (route.query.from === 'profile') {
+            const role = profile.value?.role
+            const homePath = role === 'teacher' ? '/teacher' : role === 'admin' ? '/admin' : '/student'
+            return [
+                { label: 'หน้ารวมห้องเรียน', to: homePath },
+                { label: 'โปรไฟล์', to: '/profile' },
+                { label: 'หน้าตั้งค่า' },
+            ]
         }
-       
-       return [
+
+        return [
             { label: 'โปรไฟล์ของฉัน', to: '/profile' },
-           { label: 'หน้าตั้งค่า' },
+            { label: 'หน้าตั้งค่า' },
         ]
-     }
-    
+    }
+
     return props.breadcrumb
 })
 
@@ -91,15 +92,19 @@ function goToSettings() {
         </div>
         <NotificationBell />
 
-        <button type="button" @click="goToSettings"
+        <button v-if="profile?.role !== 'admin'" type="button" @click="goToSettings"
             class="w-[38px] h-[38px]  flex items-center justify-center text-white hover:scale-110 transition-transform duration-200 shrink-0">
             <Settings :size="20" :stroke-width="2" />
         </button>
 
-        <button type="button" @click="goToProfile"
+        <button v-if="profile?.role !== 'admin'" type="button" @click="goToProfile"
             class="w-[38px] h-[38px] rounded-full border-2 border-white overflow-hidden bg-purple-light shrink-0 hover:scale-110 transition-transform duration-200">
             <img v-if="profile?.img" :src="profile.img" class="w-full h-full object-cover" alt="avatar" />
         </button>
+        <div v-else
+            class="w-[38px] h-[38px] rounded-full border-2 border-white overflow-hidden bg-purple-light shrink-0">
+            <img v-if="profile?.img" :src="profile.img" class="w-full h-full object-cover" alt="avatar" />
+        </div>
 
     </div>
 </template>

@@ -86,8 +86,22 @@ const router = createRouter({
             component: () => import('../views/teacher/QuizDetailView.vue'),
             meta: { requiresAuth: true, role: 'teacher' },
         },
-        { path: '/forgot-password', name: 'forgot-password', component: () => import('../views/ForgotPassword.vue') },
-        { path: '/reset-password', name: 'reset-password', component: () => import('../views/ResetPassword.vue') },
+        {
+            path: '/forgot-password',
+            name: 'forgot-password',
+            component: () => import('../views/ForgotPassword.vue')
+        },
+        {
+            path: '/reset-password',
+            name: 'reset-password',
+            component: () => import('../views/ResetPassword.vue')
+        },
+        {
+            path: '/admin',
+            name: 'admin-home',
+            component: () => import('../views/admin/AdminDashboardView.vue'),
+            meta: { requiresAuth: true, role: 'admin' },
+        },
     ],
 })
 
@@ -141,7 +155,8 @@ router.beforeEach(async (to) => {
             currentProfile = await fetchProfile(user.value.id)
         }
         if (currentProfile) {
-            return { name: currentProfile.role === 'teacher' ? 'teacher-home' : 'student-home' }
+            const home = { teacher: 'teacher-home', admin: 'admin-home' }[currentProfile.role] ?? 'student-home'
+                            return { name: home }
         }
     }
 

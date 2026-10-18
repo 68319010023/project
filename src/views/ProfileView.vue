@@ -9,7 +9,9 @@ import LogoutModal from '../components/LogoutModal.vue'
 const { profile } = useAuth()
 
 const isTeacher = computed(() => profile.value?.role === 'teacher')
-const homePath = computed(() => (isTeacher.value ? '/teacher' : '/student'))
+const homePath = computed(() =>
+    isTeacher.value ? '/teacher' : profile.value?.role === 'admin' ? '/admin' : '/student'
+)
 const avatarInitials = computed(
     () => (profile.value?.name?.[0] ?? '') + (profile.value?.lastname?.[0] ?? '')
 )
@@ -122,7 +124,8 @@ onMounted(() => {
                     </div>
 
                     <div class="relative mt-3">
-                        <h2 class="font-mali font-bold text-[17px] truncate">{{ profile?.name }} {{ profile?.lastname }}</h2>
+                        <h2 class="font-mali font-bold text-[17px] truncate">{{ profile?.name }} {{ profile?.lastname }}
+                        </h2>
 
                         <p class="mt-3 inline-flex items-center gap-1.5 text-[12px] text-white/70 truncate max-w-full">
                             <Mail :size="12" :stroke-width="2.5" class="shrink-0" />
@@ -141,7 +144,7 @@ onMounted(() => {
 
                 <!-- เมนูนำทาง -->
                 <nav class="bg-white border-3 border-dark rounded-2xl shadow-offset p-2 flex flex-col gap-1">
-                
+
                     <a href="#my-classrooms"
                         class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-dark text-white font-semibold text-[13.5px] transition">
                         <LayoutGrid :size="16" :stroke-width="2.5" />
@@ -249,7 +252,8 @@ onMounted(() => {
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-[13.5px] font-semibold text-dark truncate">{{ c.name }}</p>
-                                    <p v-if="c.grade_level" class="text-[11.5px] text-gray">ระดับชั้น {{ c.grade_level }}</p>
+                                    <p v-if="c.grade_level" class="text-[11.5px] text-gray">ระดับชั้น {{ c.grade_level
+                                        }}</p>
                                 </div>
                                 <span v-if="c.grade_level"
                                     class="shrink-0 border-2 border-dark rounded-lg px-2 py-0.5 font-mono text-[11px] font-bold">
@@ -265,7 +269,8 @@ onMounted(() => {
                     <div v-if="totalPages > 1"
                         class="mt-5 pt-4 border-t-2 border-dark/10 flex items-center justify-center gap-2">
                         <button type="button" @click="currentPage--" :disabled="currentPage === 1"
-                            aria-label="หน้าก่อนหน้า" class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
+                            aria-label="หน้าก่อนหน้า"
+                            class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
                                hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
                             <ChevronLeft :size="16" :stroke-width="3" />
                         </button>
@@ -280,7 +285,8 @@ onMounted(() => {
                         </button>
 
                         <button type="button" @click="currentPage++" :disabled="currentPage === totalPages"
-                            aria-label="หน้าถัดไป" class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
+                            aria-label="หน้าถัดไป"
+                            class="w-9 h-9 rounded-lg border-2 border-dark bg-white flex items-center justify-center
                                hover:bg-gray-light hover:-translate-y-0.5 disabled:opacity-40 disabled:pointer-events-none transition">
                             <ChevronRight :size="16" :stroke-width="3" />
                         </button>
