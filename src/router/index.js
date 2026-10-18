@@ -102,6 +102,12 @@ const router = createRouter({
             component: () => import('../views/admin/AdminDashboardView.vue'),
             meta: { requiresAuth: true, role: 'admin' },
         },
+        {
+            path: '/teacher/pending',
+            name: 'teacher-pending',
+            component: () => import('../views/TeacherPendingView.vue'),
+            meta: { requiresAuth: true, pendingPage: true },
+        },
     ],
 })
 
@@ -134,6 +140,10 @@ function waitUntilAuthReady(loadingRef, timeoutMs = 8000) {
     })
 }
 
+// ผู้ขอเป็นครูคือ role = 'student' + teacher_status = 'pending' (หรือ 'rejected')
+// ครูจริงคือ role = 'teacher' เท่านั้น (admin_approve_teacher เป็นคนเปลี่ยน role ให้)
+const TEACHER_REQUEST_OPEN = ['pending', 'rejected']
+
 router.beforeEach(async (to) => {
     const { user, profile, loading, fetchProfile } = useAuth()
 
@@ -149,31 +159,41 @@ router.beforeEach(async (to) => {
         return { name: 'landing' }
     }
 
-    if (to.name === 'landing' && isLoggedIn) {
-        let currentProfile = profile.value
-        if (!currentProfile || currentProfile.id !== user.value.id) {
-            currentProfile = await fetchProfile(user.value.id)
-        }
-        if (currentProfile) {
-            const home = { teacher: 'teacher-home', admin: 'admin-home' }[currentProfile.role] ?? 'student-home'
-                            return { name: home }
-        }
+    // หน้าที่ต้องรู้ role ของผู้ใช้: landing, หน้าที่กำหนด role, หน้ารออนุมัติ
+    const needsProfile = isLoggedIn && (to.name === 'landing' || to.meta.role || to.meta.pendingPage)
+    if (!needsProfile) return
+
+    let currentProfile = profile.value
+    if (!currentProfile || currentProfile.id !== user.value.id) {
+        currentProfile = await fetchProfile(user.value.id)
     }
 
-    if (to.meta.requiresAuth && to.meta.role && isLoggedIn) {
-        let currentProfile = profile.value
-        if (!currentProfile || currentProfile.id !== user.value.id) {
-            currentProfile = await fetchProfile(user.value.id)
-        }
+    if (!currentProfile) {
+        return to.name === 'landing' ? undefined : { name: 'landing' }
+    }
 
-        if (!currentProfile) {
-            return { name: 'landing' }
-        }
+    const role = currentProfile.role
+    const requestOpen = role === 'student' && TEACHER_REQUEST_OPEN.includes(currentProfile.teacher_status)
 
-        if (currentProfile.role !== to.meta.role) {
-            return { name: 'landing' }
-        }
+    if (to.name === 'landing') {
+        if (role === 'admin') return { name: 'admin-home' }
+        if (role === 'teacher') return { name: 'teacher-home' }
+        return { name: requestOpen ? 'teacher-pending' : 'student-home' }
+    }
+
+    if (to.meta.pendingPage) {
+        if (role === 'teacher') return { name: 'teacher-home' }
+        if (!requestOpen) return { name: 'landing' }
+        return
+    }
+
+    if (to.meta.role) {
+        if (role !== to.meta.role) return { name: 'landing' }
+        // ผู้ขอเป็นครูที่ยังไม่อนุมัติ ถูกล็อกไว้ที่หน้ารออนุมัติ (เหมือนพฤติกรรมเดิม)
+        if (to.meta.role === 'student' && requestOpen) return { name: 'teacher-pending' }
     }
 })
+    
+
 
 export default router

@@ -128,9 +128,12 @@ async function confirmRemoveMember() {
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       <div v-for="member in filteredMembers" :key="member.student_id" class="bg-white border-3 border-dark rounded-xl shadow-offset p-3
                   flex items-center gap-3 hover:-translate-y-1 hover:shadow-offset-lg transition">
-        <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark bg-purple-light
-                    flex items-center justify-center font-mali font-bold text-[13px]">
-          {{ initials(member) }}
+        <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark bg-purple-light overflow-hidden
+            flex items-center justify-center font-mali font-bold text-[13px]">
+          <img v-if="member.profiles?.img" :src="member.profiles.img"
+            :alt="`${member.profiles?.name ?? ''} ${member.profiles?.lastname ?? ''}`"
+            class="w-full h-full object-cover" />
+          <template v-else>{{ initials(member) }}</template>
         </div>
         <p class="flex-1 min-w-0 text-[13.5px] font-medium truncate">
           {{ member.profiles?.name }} {{ member.profiles?.lastname }}

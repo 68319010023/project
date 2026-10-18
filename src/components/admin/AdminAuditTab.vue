@@ -31,6 +31,12 @@ function auditText(a) {
   if (a.action === 'delete_classroom') {
     return `ลบห้องเรียน "${d.name ?? '-'}"${d.grade_level ? ` (${d.grade_level})` : ''}`
   }
+  if (a.action === 'approve_teacher') {
+    return `อนุมัติ ${d.target_name || d.email || 'ผู้ใช้'} เป็นครู`
+  }
+  if (a.action === 'reject_teacher') {
+    return `ปฏิเสธคำขอเป็นครูของ ${d.target_name || d.email || 'ผู้ใช้'}`
+  }
   return a.action
 }
 </script>

@@ -47,6 +47,8 @@ onMounted(async () => {
   await loadQuizzes()
   await loadQuizSubmissions()
 })
+
+
 </script>
 
 <template>
@@ -95,7 +97,7 @@ onMounted(async () => {
           @go-tab="activeTab = $event" />
 
         <Members v-else-if="activeTab === 'members'" :classroom="classroom" :members="members"
-          :members-loading="membersLoading" />
+          :current-user-id="user?.id" :members-loading="membersLoading" />
 
         <Assignments v-else-if="activeTab === 'assignments'" :classroom-id="classroomId" :assignments="assignments"
           :assignments-loading="assignmentsLoading" :submissions-loading="submissionsLoading"

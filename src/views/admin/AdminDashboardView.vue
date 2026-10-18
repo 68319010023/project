@@ -1,15 +1,18 @@
 <script setup>
 // หน้า Admin (เปลือก): sidebar + เลือกแท็บ (เก็บใน URL ?tab=...) แต่ละแท็บโหลดข้อมูลของตัวเอง
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { LayoutDashboard, Users, School, Sparkles, ScrollText, LogOut } from 'lucide-vue-next'
+import { LayoutDashboard, Users, UserCheck, School, Sparkles, ScrollText, LogOut } from 'lucide-vue-next'
+import { supabase } from '../../lib/supabase.js'
 import AppNavbar from '../../components/AppNavbar.vue'
 import LogoutModal from '../../components/LogoutModal.vue'
 import AdminOverviewTab from '../../components/admin/AdminOverviewTab.vue'
 import AdminUsersTab from '../../components/admin/AdminUsersTab.vue'
+import AdminRequestsTab from '../../components/admin/AdminRequestsTab.vue'
 import AdminRoomsTab from '../../components/admin/AdminRoomsTab.vue'
 import AdminAiTab from '../../components/admin/AdminAiTab.vue'
 import AdminAuditTab from '../../components/admin/AdminAuditTab.vue'
+
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +20,7 @@ const router = useRouter()
 const tabs = [
   { key: 'overview', label: 'ภาพรวม', icon: LayoutDashboard, desc: 'สรุปการใช้งานระบบและ AI เดือนนี้' },
   { key: 'users', label: 'ผู้ใช้', icon: Users, desc: 'ค้นหาและกรองผู้ใช้ตามบทบาท' },
+  { key: 'requests', label: 'คำขอเป็นครู', icon: UserCheck, desc: 'อนุมัติหรือปฏิเสธผู้ที่ขอสิทธิ์ครู' },
   { key: 'rooms', label: 'ห้องเรียน', icon: School, desc: 'ดูและจัดการห้องเรียนทั้งหมด' },
   { key: 'ai', label: 'การใช้ AI', icon: Sparkles, desc: 'การใช้ AI แยกตามห้องเรียน เดือนนี้ (เวลาไทย)' },
   { key: 'audit', label: 'บันทึกการทำงาน', icon: ScrollText, desc: 'ประวัติการกระทำของแอดมิน' },
@@ -32,6 +36,12 @@ function selectTab(key) {
 }
 
 const showLogoutModal = ref(false)
+const pendingCount = ref(0)
+async function loadPendingCount() {
+  const { data, error } = await supabase.rpc('admin_list_teacher_requests')
+  if (!error) pendingCount.value = (data ?? []).length
+}
+onMounted(loadPendingCount)
 </script>
 
 <template>
@@ -50,6 +60,10 @@ const showLogoutModal = ref(false)
             :class="activeTab === t.key ? 'bg-dark text-white' : 'text-dark hover:bg-dark/15'">
             <component :is="t.icon" :size="16" :stroke-width="2.5" class="shrink-0" />
             {{ t.label }}
+            <span v-if="t.key === 'requests' && pendingCount > 0"
+              class="ml-auto min-w-[20px] px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[11px] font-bold text-center">
+              {{ pendingCount }}
+            </span>
           </button>
 
           <div class="hidden lg:block h-0.5 bg-dark/10 my-1 mx-2"></div>
@@ -72,6 +86,8 @@ const showLogoutModal = ref(false)
         <!-- แต่ละแท็บ mount ใหม่ทุกครั้งที่สลับ จึงโหลดข้อมูลสดเสมอ -->
         <AdminOverviewTab v-if="activeTab === 'overview'" @go-tab="selectTab" />
         <AdminUsersTab v-else-if="activeTab === 'users'" />
+        <AdminRequestsTab v-else-if="activeTab === 'requests'" @changed="loadPendingCount" />
+        
         <AdminRoomsTab v-else-if="activeTab === 'rooms'" />
         <AdminAiTab v-else-if="activeTab === 'ai'" />
         <AdminAuditTab v-else-if="activeTab === 'audit'" />

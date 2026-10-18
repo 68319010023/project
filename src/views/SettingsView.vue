@@ -12,8 +12,14 @@ const route = useRoute()
 const router = useRouter()
 const { profile, updateProfile } = useAuth()
 
-const homePath = computed(() => (profile.value?.role === 'teacher' ? '/teacher' : '/student'))
+const homePath = computed(() => {
+    const role = profile.value?.role
+    if (role === 'admin') return '/admin'
+    if (role === 'teacher') return '/teacher'
+    return '/student'
+})
 const notificationsOn = computed(() => !!profile.value?.notifications_enabled)
+
 
 
 const breadcrumb = computed(() =>
@@ -24,7 +30,7 @@ const breadcrumb = computed(() =>
             { label: 'หน้าตั้งค่า' },
         ]
         : [
-            { label: 'โปรไฟล์ของฉัน', to: '/profile' },
+            { label: 'หน้ารวมห้องเรียน', to: homePath.value },
             { label: 'หน้าตั้งค่า' },
         ]
 )

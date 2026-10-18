@@ -6,17 +6,23 @@ const props = defineProps({
   classroom: { type: Object, default: null },
   members: { type: Array, default: () => [] },
   membersLoading: { type: Boolean, default: false },
+  currentUserId: { type: String, default: null },
 })
 
 const search = ref('')
 
+const isMe = (m) => !!props.currentUserId && m.student_id === props.currentUserId
+
 const filteredMembers = computed(() => {
   const q = search.value.trim().toLowerCase()
-  if (!q) return props.members
-  return props.members.filter((m) => {
-    const fullName = `${m.profiles?.name ?? ''} ${m.profiles?.lastname ?? ''}`.toLowerCase()
-    return fullName.includes(q)
-  })
+  const list = !q
+    ? props.members
+    : props.members.filter((m) => {
+      const fullName = `${m.profiles?.name ?? ''} ${m.profiles?.lastname ?? ''}`.toLowerCase()
+      return fullName.includes(q)
+    })
+
+  return [...list].sort((a, b) => Number(isMe(b)) - Number(isMe(a)))
 })
 
 function initials(m) {
@@ -69,15 +75,21 @@ function initials(m) {
     </p>
 
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      <div v-for="member in filteredMembers" :key="member.student_id" class="bg-white border-3 border-dark rounded-xl shadow-offset p-3
-                  flex items-center gap-3 hover:-translate-y-1 hover:shadow-offset-lg transition">
+      <div v-for="member in filteredMembers" :key="member.student_id" class="relative bg-white border-3 border-dark rounded-xl p-3
+         flex items-center gap-3 hover:-translate-y-1 transition" :class="isMe(member)
+          ? 'shadow-[5px_5px_0_#1a1a1a] hover:shadow-[7px_7px_0_#1a1a1a]'
+          : 'shadow-offset hover:shadow-offset-lg'">
+        <span v-if="isMe(member)" class="absolute -top-2.5 right-3 font-mono text-[13.5px] font-bold bg-orange
+           border-2 border-dark rounded-md px-1.5 py-px rotate-3 ">
+          คุณ
+        </span>
         <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark bg-purple-light overflow-hidden
-                    flex items-center justify-center font-mali font-bold text-[13px]">
+              flex items-center justify-center font-mali font-bold text-[13px]">
           <img v-if="member.profiles?.img" :src="member.profiles.img" class="w-full h-full object-cover"
             alt="เพื่อนร่วมห้อง" />
           <span v-else>{{ initials(member) }}</span>
         </div>
-        <p class="text-[13.5px] font-medium truncate">
+        <p class="min-w-0 text-[13.5px] font-medium truncate">
           {{ member.profiles?.name }} {{ member.profiles?.lastname }}
         </p>
       </div>
