@@ -463,3 +463,50 @@ html {
     .marquee-track, .float-wrap { animation: none; }
     .marquee { overflow-x: auto; }
 }
+
+/* ---- มาสคอตใต้หัวข้อ FAQ ---- */
+.mascot-stage {
+    perspective: 600px;
+    width: 280px;
+}
+.mascot-float {
+    animation: mascot-float 3.6s ease-in-out infinite;
+}
+.mascot-img {
+    transition: transform 0.15s ease-out, filter 0.2s;
+    transform-style: preserve-3d;
+    filter: drop-shadow(4px 4px 0 rgba(0, 0, 0, 0.2));
+}
+.mascot-img:hover {
+    filter: drop-shadow(6px 6px 0 rgba(0, 0, 0, 0.25));
+}
+.mascot-shadow {
+    width: 110px;
+    height: 12px;
+    margin: 6px auto 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.18);
+    animation: mascot-shadow 3.6s ease-in-out infinite;
+}
+.mascot-bounce {
+    animation: mascot-bounce 0.55s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes mascot-float {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-14px) rotate(2deg); }
+}
+@keyframes mascot-shadow {
+    0%, 100% { transform: scaleX(1); opacity: 0.18; }
+    50% { transform: scaleX(0.75); opacity: 0.1; }
+}
+@keyframes mascot-bounce {
+    0% { transform: scale(1); }
+    30% { transform: scale(0.85, 1.12); }
+    60% { transform: scale(1.12, 0.9); }
+    100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mascot-float, .mascot-shadow, .mascot-bounce { animation: none; }
+}

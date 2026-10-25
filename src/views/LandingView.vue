@@ -88,6 +88,40 @@ function playReport() {
     raf = requestAnimationFrame(tick)
 }
 
+// ---- ลูกเล่นมาสคอตใต้หัวข้อ FAQ ----
+const mascotQuotes = [
+    'มีอะไรสงสัยถามได้เลย!',
+    'ลองกดคำถามด้านขวาดูสิ',
+    'ครูไม่ต้องตรวจเองทุกข้อแล้วนะ',
+    'AI ช่วยดูแลทุกคนเลย',
+    'ขอบคุณที่แวะมานะ 💜'
+]
+const mascotQuote = ref('')
+const mascotBounce = ref(false)
+const mascotTilt = ref({ x: 0, y: 0 })
+let quoteTimer = 0
+let quoteIndex = -1
+
+function onMascotMove(e) {
+    const r = e.currentTarget.getBoundingClientRect()
+    const px = (e.clientX - r.left) / r.width - 0.5
+    const py = (e.clientY - r.top) / r.height - 0.5
+    mascotTilt.value = { x: -py * 22, y: px * 22 }
+}
+function onMascotLeave() {
+    mascotTilt.value = { x: 0, y: 0 }
+}
+function onMascotClick() {
+    mascotBounce.value = false
+    requestAnimationFrame(() => (mascotBounce.value = true))
+    let i
+    do { i = Math.floor(Math.random() * mascotQuotes.length) } while (i === quoteIndex)
+    quoteIndex = i
+    mascotQuote.value = mascotQuotes[i]
+    clearTimeout(quoteTimer)
+    quoteTimer = setTimeout(() => (mascotQuote.value = ''), 2600)
+}
+
 function handleScroll() {
     showScrollTop.value = window.scrollY > 500
 }
@@ -110,6 +144,7 @@ onMounted(async () => {
 })
 onUnmounted(() => {
     cancelAnimationFrame(raf)
+    clearTimeout(quoteTimer)
     window.removeEventListener('scroll', handleScroll)
 })
 </script>
@@ -403,7 +438,32 @@ onUnmounted(() => {
                 <div class="text-left">
                     <h2 class="text-[clamp(24px,3vw,32px)] leading-snug">คำถามที่พบบ่อย</h2>
                     <p class="text-gray text-[14px] sm:text-[15px] leading-loose mt-3">เรื่องที่ครูและนักเรียนมักสงสัยก่อนเริ่มใช้งาน</p>
+
+                    <!-- มาสคอต -->
+                    <div class="hidden md:block relative mt-8 w-[190px]">
+                        <!-- กรอบคำพูด -->
+                        <Transition name="fade-scale">
+                            <div v-if="mascotQuote"
+                                class="absolute -top-2 left-[250px] z-10 w-max max-w-[150px] bg-white border-3 border-dark rounded-xl shadow-offset-sm px-3 py-2 text-[12.5px] leading-snug">
+                                {{ mascotQuote }}
+                                <span class="absolute -left-2 bottom-3 w-3 h-3 rotate-45 bg-white border-l-3 border-b-3 border-dark"></span>
+                            </div>
+                        </Transition>
+
+                        <div class="mascot-stage" @mousemove="onMascotMove" @mouseleave="onMascotLeave" @click="onMascotClick">
+                            <div class="mascot-float">
+                                <img src="/img/logo.png" alt="มาสคอตห้องเรียนของฉัน" draggable="false"
+                                    class="mascot-img w-[280px] h-[280px] object-cover select-none cursor-pointer"
+                                    :class="mascotBounce ? 'mascot-bounce' : ''"
+                                    :style="{ transform: `rotateX(${mascotTilt.x}deg) rotateY(${mascotTilt.y}deg)` }"
+                                    @animationend="mascotBounce = false">
+                            </div>
+                            <div class="mascot-shadow"></div>
+                        </div>
+                        
+                    </div>
                 </div>
+
                 <div class="space-y-3">
                     <div v-for="(f, i) in faqs" :key="f.q" class="bg-white border-3 border-dark rounded-xl shadow-offset-sm text-left overflow-hidden">
                         <button type="button" @click="faqOpen = faqOpen === i ? -1 : i"
@@ -500,4 +560,3 @@ onUnmounted(() => {
 
     </div>
 </template>
-
