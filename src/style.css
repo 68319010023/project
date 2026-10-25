@@ -417,3 +417,49 @@ html {
     animation: none !important;
   }
 }
+
+.marquee {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+}
+.marquee-track {
+    animation: marquee-left 45s linear infinite;
+}
+.float-wrap {
+    animation: card-float 6s ease-in-out infinite alternate;
+}
+@keyframes card-float {
+    from { transform: translateY(-9px); }
+    to { transform: translateY(9px); }
+}
+@keyframes marquee-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .marquee-track, .float-wrap { animation: none; }
+    .marquee { overflow-x: auto; }
+}
+
+.marquee {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+}
+.marquee-track {
+    animation: marquee-left 45s linear infinite;
+}
+.float-wrap {
+    animation: card-float 6s ease-in-out infinite alternate;
+}
+@keyframes card-float {
+    from { transform: translateY(-9px); }
+    to { transform: translateY(9px); }
+}
+@keyframes marquee-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .marquee-track, .float-wrap { animation: none; }
+    .marquee { overflow-x: auto; }
+}
