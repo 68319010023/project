@@ -182,6 +182,11 @@ async function saveGrading(sub) {
   sub.feedback = g.feedback?.trim() || null
   g.open = false
 }
+  // สั่ง AI วิเคราะห์จุดอ่อนอัตโนมัติ (ไม่ await: ครูไม่ต้องรอ)
+  supabase.functions
+    .invoke('analyze-weakness', { body: { student_id: sub.student_id, classroom_id: classroomId } })
+   .catch((e) => console.error('analyze-weakness threw:', e))
+ 
 
 async function loadSubmissions() {
   submissionsLoading.value = true

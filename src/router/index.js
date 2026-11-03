@@ -108,6 +108,13 @@ const router = createRouter({
             component: () => import('../views/TeacherPendingView.vue'),
             meta: { requiresAuth: true, pendingPage: true },
         },
+
+        {
+            path: '/classroom/:id/student/:studentId',
+            name: 'teacher-student-overview',
+            component: () => import('../views/teacher/StudentOverviewView.vue'),
+            meta: { requiresAuth: true, role: 'teacher' },
+        },
     ],
 })
 

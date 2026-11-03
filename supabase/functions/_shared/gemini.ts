@@ -19,6 +19,7 @@ async function request(model: string, o: Opts, withThinking: boolean) {
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
       headers: { "Content-Type": "application/json", "x-goog-api-key": o.apiKey },
       body: JSON.stringify({
         contents: o.contents,

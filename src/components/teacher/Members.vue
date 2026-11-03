@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { supabase } from '../../lib/supabase'
 import { Users, Search, KeyRound, Copy, Check, UserX, TriangleAlert } from 'lucide-vue-next'
 
@@ -11,7 +12,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['reload-members'])
-
+const router = useRouter()
+function openStudent(studentId) {
+  router.push({
+    name: 'teacher-student-overview',
+    params: { id: props.classroomId, studentId },
+  })
+}
 const search = ref('')
 const removingStudentId = ref(null)
 const copied = ref(false)
@@ -86,7 +93,8 @@ async function confirmRemoveMember() {
         </div>
         <div class="min-w-0">
           <p class="text-[11px] font-bold text-gray font-mono uppercase">รหัสเข้าห้องเรียน</p>
-          <p class="font-mali font-bold text-[18px] sm:text-[22px] text-dark tracking-wide break-all">{{ classCode }}</p>
+          <p class="font-mali font-bold text-[18px] sm:text-[22px] text-dark tracking-wide break-all">{{ classCode }}
+          </p>
         </div>
       </div>
       <button type="button" @click="copyCode" class="inline-flex items-center gap-1.5 border-2 border-dark rounded-xl px-4 py-2
@@ -126,56 +134,57 @@ async function confirmRemoveMember() {
     </p>
 
     <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      <div v-for="member in filteredMembers" :key="member.student_id" class="bg-white border-3 border-dark rounded-xl shadow-offset p-3
+        <div v-for="member in filteredMembers" :key="member.student_id" role="link" tabindex="0"
+          @click="openStudent(member.student_id)" @keydown.enter="openStudent(member.student_id)" class="bg-white border-3 border-dark rounded-xl shadow-offset p-3 cursor-pointer
                   flex items-center gap-3 hover:-translate-y-1 hover:shadow-offset-lg transition">
-        <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark bg-purple-light overflow-hidden
+          <div class="w-9 h-9 shrink-0 rounded-full border-2 border-dark bg-purple-light overflow-hidden
             flex items-center justify-center font-mali font-bold text-[13px]">
-          <img v-if="member.profiles?.img" :src="member.profiles.img"
-            :alt="`${member.profiles?.name ?? ''} ${member.profiles?.lastname ?? ''}`"
-            class="w-full h-full object-cover" />
-          <template v-else>{{ initials(member) }}</template>
-        </div>
-        <p class="flex-1 min-w-0 text-[12.5px] sm:text-[13.5px] font-medium truncate">
-          {{ member.profiles?.name }} {{ member.profiles?.lastname }}
-        </p>
-        <button type="button"
-          @click="requestRemoveMember(member.student_id, `${member.profiles?.name} ${member.profiles?.lastname}`)"
-          :disabled="removingStudentId === member.student_id" class="shrink-0 w-7 h-7 rounded-full border-2 border-dark flex items-center justify-center
-                       text-red-600 hover:bg-red-50 disabled:opacity-40 transition">
-          <UserX :size="14" :stroke-width="2.5" />
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <Teleport to="body">
-    <div v-if="showRemoveModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6"
-      @click.self="cancelRemoveMember">
-      <div class="bg-white border-3 border-dark rounded-2xl shadow-offset max-w-[360px] w-full p-6">
-        <div class="flex items-center gap-3 mb-3">
-          <div
-            class="w-10 h-10 rounded-full border-2 border-danger bg-red-50 flex items-center justify-center shrink-0">
-            <TriangleAlert :size="18" :stroke-width="2.5" class="text-danger" />
+            <img v-if="member.profiles?.img" :src="member.profiles.img"
+              :alt="`${member.profiles?.name ?? ''} ${member.profiles?.lastname ?? ''}`"
+              class="w-full h-full object-cover" />
+            <template v-else>{{ initials(member) }}</template>
           </div>
-          <h3 class="font-mali font-bold text-lg">ลบสมาชิกออกจากห้อง</h3>
-        </div>
-
-        <p class="text-[13px] text-gray mb-4">
-          ต้องการลบ <span class="font-semibold text-dark">"{{ memberToRemove?.studentName }}"</span>
-          ออกจากห้องเรียนใช่ไหม?
-        </p>
-
-        <div class="flex gap-3">
-          <button type="button" @click="cancelRemoveMember"
-            class="flex-1 px-4 py-2.5 rounded-[10px] border-2 border-dark bg-white font-semibold text-[13px] shadow-offset-sm hover:-translate-y-0.5 transition">
-            ยกเลิก
-          </button>
-          <button type="button" @click="confirmRemoveMember"
-            class="flex-1 px-4 py-2.5 rounded-[10px] border-2 border-dark bg-danger text-white font-semibold text-[13px] shadow-offset-sm hover:-translate-y-0.5 transition">
-            ลบออกจากห้อง
+          <p class="flex-1 min-w-0 text-[12.5px] sm:text-[13.5px] font-medium truncate">
+            {{ member.profiles?.name }} {{ member.profiles?.lastname }}
+          </p>
+          <button type="button"
+            @click="requestRemoveMember(member.student_id, `${member.profiles?.name} ${member.profiles?.lastname}`)"
+            :disabled="removingStudentId === member.student_id" class="shrink-0 w-7 h-7 rounded-full border-2 border-dark flex items-center justify-center
+                       text-red-600 hover:bg-red-50 disabled:opacity-40 transition">
+            <UserX :size="14" :stroke-width="2.5" />
           </button>
         </div>
       </div>
     </div>
-  </Teleport>
+
+    <Teleport to="body">
+      <div v-if="showRemoveModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-6"
+        @click.self="cancelRemoveMember">
+        <div class="bg-white border-3 border-dark rounded-2xl shadow-offset max-w-[360px] w-full p-6">
+          <div class="flex items-center gap-3 mb-3">
+            <div
+              class="w-10 h-10 rounded-full border-2 border-danger bg-red-50 flex items-center justify-center shrink-0">
+              <TriangleAlert :size="18" :stroke-width="2.5" class="text-danger" />
+            </div>
+            <h3 class="font-mali font-bold text-lg">ลบสมาชิกออกจากห้อง</h3>
+          </div>
+
+          <p class="text-[13px] text-gray mb-4">
+            ต้องการลบ <span class="font-semibold text-dark">"{{ memberToRemove?.studentName }}"</span>
+            ออกจากห้องเรียนใช่ไหม?
+          </p>
+
+          <div class="flex gap-3">
+            <button type="button" @click="cancelRemoveMember"
+              class="flex-1 px-4 py-2.5 rounded-[10px] border-2 border-dark bg-white font-semibold text-[13px] shadow-offset-sm hover:-translate-y-0.5 transition">
+              ยกเลิก
+            </button>
+            <button type="button" @click="confirmRemoveMember"
+              class="flex-1 px-4 py-2.5 rounded-[10px] border-2 border-dark bg-danger text-white font-semibold text-[13px] shadow-offset-sm hover:-translate-y-0.5 transition">
+              ลบออกจากห้อง
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 </template>
