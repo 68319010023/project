@@ -178,15 +178,22 @@ async function saveGrading(sub) {
   }
 
   // อัปเดตข้อมูลในการ์ดทันทีโดยไม่ต้อง reload ทั้งหน้า
+  // อัปเดตข้อมูลในการ์ดทันทีโดยไม่ต้อง reload ทั้งหน้า
   sub.score = scoreNum
   sub.feedback = g.feedback?.trim() || null
   g.open = false
-}
-  // สั่ง AI วิเคราะห์จุดอ่อนอัตโนมัติ (ไม่ await: ครูไม่ต้องรอ)
+
+  // สั่ง AI วิเคราะห์จุดอ่อนอัตโนมัติ (ไม่ await: ครูไม่ต้องรอ และถ้า AI พังก็ไม่กระทบการบันทึกคะแนน)
   supabase.functions
-    .invoke('analyze-weakness', { body: { student_id: sub.student_id, classroom_id: classroomId } })
-   .catch((e) => console.error('analyze-weakness threw:', e))
- 
+    .invoke('analyze-weakness', {
+      body: { student_id: sub.student_id, classroom_id: classroomId },
+    })
+    .then(({ data, error: fnError }) => {
+      if (fnError) console.error('analyze-weakness error:', fnError)
+      else if (data?.ok === false) console.warn('analyze-weakness skipped:', data.reason)
+    })
+    .catch((e) => console.error('analyze-weakness threw:', e))
+}
 
 async function loadSubmissions() {
   submissionsLoading.value = true
